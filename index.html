@@ -413,14 +413,9 @@ function updateF(type, val) {
             filters[type].splice(idx, 1); 
         } else {
             filters[type].push(val); 
-            if (type === 'week') {
-                let f = dbMaster.find(d => getW(d) === val) || dbSales.find(d => getW(d) === val);
-                if (f && f.month && !filters.month.includes(f.month)) filters.month.push(f.month);
-            }
-            if (type === 'area') {
-                let f = dbMaster.find(d => d.area === val) || dbSales.find(d => d.area === val);
-                if (f && f.hq && !filters.hq.includes(f.hq)) filters.hq.push(f.hq);
-            }
+            
+            // Đã xóa truy vết ngược của Week -> Month và Area -> HQ.
+            // Vẫn giữ lại truy vết ngược của KAE -> KAM theo yêu cầu của bạn:
             if (type === 'kae') {
                 let f = dbMaster.find(d => cleanName(d.kae) === val) || dbSales.find(d => cleanName(d.kae) === val);
                 if (f && f.kam) {
@@ -430,6 +425,31 @@ function updateF(type, val) {
             }
         }
     }
+
+    // Cơ chế lọc xuôi (cha xuống con) giữ nguyên
+    if (filters.month.length > 0) {
+        let valid = new Set();
+        for(let i=0; i<dbMaster.length; i++) { if(filters.month.includes(dbMaster[i].month)) valid.add(getW(dbMaster[i])); }
+        for(let i=0; i<dbSales.length; i++) { if(filters.month.includes(dbSales[i].month)) valid.add(getW(dbSales[i])); }
+        filters.week = filters.week.filter(w => valid.has(w));
+    } else if (type === 'month') filters.week = [];
+
+    if (filters.hq.length > 0) {
+        let valid = new Set();
+        for(let i=0; i<dbMaster.length; i++) { if(filters.hq.includes(dbMaster[i].hq)) valid.add(dbMaster[i].area); }
+        for(let i=0; i<dbSales.length; i++) { if(filters.hq.includes(dbSales[i].hq)) valid.add(dbSales[i].area); }
+        filters.area = filters.area.filter(a => valid.has(a));
+    } else if (type === 'hq') filters.area = [];
+
+    if (filters.kam.length > 0) {
+        let valid = new Set();
+        for(let i=0; i<dbMaster.length; i++) { if(filters.kam.includes(cleanName(dbMaster[i].kam, true, dbMaster[i].area))) valid.add(cleanName(dbMaster[i].kae)); }
+        for(let i=0; i<dbSales.length; i++) { if(filters.kam.includes(cleanName(dbSales[i].kam, true, dbSales[i].area))) valid.add(cleanName(dbSales[i].kae)); }
+        filters.kae = filters.kae.filter(k => valid.has(k));
+    } else if (type === 'kam') filters.kae = [];
+
+    renderFilters(); render(); 
+}
 
     if (filters.month.length > 0) {
         let valid = new Set();
