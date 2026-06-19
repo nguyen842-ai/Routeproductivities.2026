@@ -14,6 +14,14 @@
         }
         * { -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f0f4f8; color: var(--b7); font-size: 13px; overflow-x: hidden; }
+        
+        /* HIỆU ỨNG LOADING OVERLAY */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); transition: opacity 0.4s ease; }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 45px; height: 45px; border: 5px solid var(--b2); border-top: 5px solid var(--b5); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { font-size: 15px; font-weight: 700; color: var(--b6); letter-spacing: 0.5px;}
+
         .db-container { display: flex; min-height: 100vh; position: relative; }
 
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; transition: opacity 0.3s; }
@@ -64,7 +72,7 @@
         .data-table { width: 100%; border-collapse: collapse; background: white; font-size: 12px; min-width: 800px; } 
         .data-table th { background: var(--b5); color: white; padding: 12px; border: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
         .data-table td { padding: 10px 12px; border: 1px solid #f1f5f9; text-align: center; line-height: 1.4; white-space: nowrap; }
-        .label-cell { background: var(--b1); color: var(--b6); font-weight: 800; text-align: left !important; width: 160px; position: sticky; left: 0; z-index: 2; }
+        .label-cell { background: var(--b1); color: var(--b6); font-weight: 800; text-align: left !important; position: sticky; left: 0; z-index: 2; }
         .no-select { user-select: none; }
 
         .segment-table { width:100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; background: white; min-width: 800px; }
@@ -89,6 +97,11 @@
     </style>
 </head>
 <body>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" data-i18n="loading">Hệ thống đang tải và xử lý dữ liệu...</div>
+</div>
 
 <div class="db-container">
     <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
@@ -163,6 +176,17 @@
             <div class="chart-title" data-i18n="cWeekTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN</div><div class="chart-subtitle" id="sub-week"></div>
             <div style="height: 380px;"><canvas id="weekChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="weekHeaderRow"></tr></thead><tbody id="weekTableBody"></tbody></table></div>
         </div>
+
+        <div class="chart-box">
+            <div class="chart-title" style="color: #ea580c;" data-i18n="cZeroSalesTitle">🚨 DANH SÁCH KAE KHÔNG PHÁT SINH DOANH SỐ (3 NGÀY LÀM VIỆC MỚI NHẤT)</div>
+            <div class="chart-subtitle" id="sub-zero-sales"></div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr id="zeroSalesHeaderRow"></tr></thead>
+                    <tbody id="zeroSalesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
     </main>
 </div>
 
@@ -175,12 +199,15 @@
 <script>
 const dict = {
     vi: {
+        loading: "Hệ thống đang tải và xử lý dữ liệu...",
         sysTitle: "HIỆU SUẤT TUYẾN BÁN HÀNG", fMonth: "Tháng", fWeek: "Tuần", fRegion: "Miền", fArea: "Khu vực", optAll: "Tất cả", 
         allKam: "TẤT CẢ KAM", allKae: "TẤT CẢ KAE/DSR", kpiSales: "TỔNG SELL OUT", kpiSalesSub: "VNĐ (Chưa VAT)", 
         kpiTotal: "TỔNG KH TRÊN TUYẾN", kpiTotalSub: "khách hàng", kpiActive: "Khách Active", kpiActiveSub: "khách hàng", 
         kpiStrike: "Strike Rate", kpiStrikeSub: "Tỷ lệ KH Active / Tổng", cAreaTitle: "HIỆU SUẤT THEO KHU VỰC (AREA)", 
         cSegmentTitle: "📊 PHÂN TÍCH HIỆU SUẤT THEO PHÂN KHÚC KHÁCH HÀNG",
         cKamTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAM", cDayTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAE",
+        cZeroSalesTitle: "🚨 DANH SÁCH KAE KHÔNG PHÁT SINH DOANH SỐ (3 NGÀY MỚI NHẤT)",
+        noZeroSales: "Không có KAE nào không phát sinh doanh số trong 3 ngày qua.",
         axisCust: "Đơn vị: Mã KH", axisVnd: "Đơn vị: VNĐ", legSales: "Doanh số", legTotal: "Tổng KH Kế Hoạch", legActive: "KH Active",
         tblColArea: "Chỉ số / Khu vực", tblColKam: "Chỉ số / Ngày (KAM)", tblColDay: "Chỉ số / Ngày (KAE)",
         rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", rowStrike: "Strike Rate",
@@ -192,12 +219,15 @@ const dict = {
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active"
     },
     en: {
+        loading: "Loading and processing data...",
         sysTitle: "ROUTE PRODUCTIVITIES REPORT", fMonth: "Month", fWeek: "Week", fRegion: "Region", fArea: "Area", optAll: "All", 
         allKam: "ALL KAMs", allKae: "ALL KAE/DSRs", kpiSales: "Total SELL OUT", kpiSalesSub: "VND (Excl. VAT)", 
         kpiTotal: "ROUTE TOTAL CUS.", kpiTotalSub: "Customers", kpiActive: "Active Customers", kpiActiveSub: "Customers", 
         kpiStrike: "Strike Rate", kpiStrikeSub: "Active / Total Ratio", cAreaTitle: "PERFORMANCE BY AREA", 
         cSegmentTitle: "📊 CUSTOMER SEGMENT PRODUCTIVITY BY AREA",
         cKamTitle: "SALES & CUSTOMER PERFORMANCE BY KAM", cDayTitle: "SALES & CUSTOMER PERFORMANCE BY KAE",
+        cZeroSalesTitle: "🚨 KAE WITH NO SALES (LATEST 3 WORKING DAYS)",
+        noZeroSales: "No KAE found without sales in the last 3 days.",
         axisCust: "Unit: Cust. Codes", axisVnd: "Unit: VND", legSales: "Sales", legTotal: "Planned Cust.", legActive: "Active Cust.",
         tblColArea: "Metric / Area", tblColKam: "Metric / Day (KAM)", tblColDay: "Metric / Day (KAE)",
         rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", rowStrike: "Strike Rate",
@@ -730,18 +760,127 @@ function render() {
     document.getElementById("kam-val-contrib-area").innerText = areaSalesTotal > 0 ? (kamAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kam-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kamAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
     document.getElementById("kae-val-sales").innerText = fmt(kaeAgg.s); document.getElementById("kae-val-buying-rate").innerText = kaeAgg.tc > 0 ? (kaeAgg.ac / kaeAgg.tc * 100).toFixed(1) + "%" : "0%";
     document.getElementById("kae-val-contrib-area").innerText = areaSalesTotal > 0 ? (kaeAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kae-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kaeAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
+
+    /* =========================================================================
+       XỬ LÝ LOGIC DANH SÁCH KAE 0 SALES TRONG 3 NGÀY MỚI NHẤT
+       ========================================================================= */
+    let latestWM = realWMs.length > 0 ? realWMs[realWMs.length - 1] : null;
+    let zeroSalesHtml = "";
+    let zeroHeaderHtml = "";
+    let daysTxt = t('days');
+
+    if (latestWM) {
+        let latestW = latestWM.w;
+        let latestM = latestWM.m;
+        
+        let lwMaster = baseMaster.filter(d => getW(d) === latestW && d.month === latestM);
+        let lwSales = baseSales.filter(d => getW(d) === latestW && d.month === latestM);
+
+        // Tìm thứ/ngày có dữ liệu sales mới nhất trong tuần
+        let maxDayIdx = -1;
+        lwSales.forEach(d => {
+            let dIdx = parseDay(d.day);
+            if (dIdx > maxDayIdx && (Number(d.sales) || 0) > 0) maxDayIdx = dIdx;
+        });
+        if (maxDayIdx === -1) {
+            lwMaster.forEach(d => { let dIdx = parseDay(d.day); if (dIdx > maxDayIdx) maxDayIdx = dIdx; });
+        }
+
+        // Lấy 3 ngày gần nhất (tránh bị số âm nếu đang ở đầu tuần)
+        let targetDays = [];
+        for (let i = 0; i < 3; i++) {
+            if (maxDayIdx - i >= 0) targetDays.push(maxDayIdx - i);
+        }
+
+        let kaeMap = {};
+        lwMaster.forEach(d => {
+            let kName = cleanName(d.kae);
+            if (!kName) return;
+            if (!kaeMap[kName]) kaeMap[kName] = { hq: d.hq, area: d.area, kam: cleanName(d.kam, true, d.area), salesByDay: [0,0,0,0,0,0] };
+        });
+
+        lwSales.forEach(d => {
+            let kName = cleanName(d.kae);
+            if (!kName) return;
+            if (!kaeMap[kName]) kaeMap[kName] = { hq: d.hq, area: d.area, kam: cleanName(d.kam, true, d.area), salesByDay: [0,0,0,0,0,0] };
+            let dIdx = parseDay(d.day);
+            if (dIdx >= 0 && dIdx <= 5) { kaeMap[kName].salesByDay[dIdx] += (Number(d.sales) || 0); }
+        });
+
+        let zeroKaes = [];
+        for (let kName in kaeMap) {
+            let kaeInfo = kaeMap[kName];
+            let salesInTarget = targetDays.reduce((sum, dIdx) => sum + kaeInfo.salesByDay[dIdx], 0);
+            
+            // BỘ LỌC MỚI THÊM: KIỂM TRA TRẠNG THÁI "❌" ĐỂ BỎ QUA NGƯỜI ĐÃ NGHỈ
+            let kaeStatus = globalKaeStatus[kName] || kName;
+            if (kaeStatus.startsWith('❌')) continue;
+
+            if (salesInTarget === 0 && targetDays.length > 0) { zeroKaes.push({ name: kName, ...kaeInfo }); }
+        }
+
+        zeroKaes.sort((a,b) => {
+            if(a.hq !== b.hq) return (a.hq||"").localeCompare(b.hq||"");
+            if(a.area !== b.area) return (a.area||"").localeCompare(b.area||"");
+            if(a.kam !== b.kam) return (a.kam||"").localeCompare(b.kam||"");
+            return a.name.localeCompare(b.name);
+        });
+
+        zeroHeaderHtml = `
+            <th class="label-cell" style="width: 10%;">HQ</th>
+            <th class="label-cell" style="width: 15%;">Area</th>
+            <th class="label-cell" style="width: 20%;">KAM</th>
+            <th class="label-cell" style="width: 25%;">KAE</th>
+            ${daysTxt.map((d, i) => `<th style="${targetDays.includes(i) ? 'background:#ffedd5; color:#ea580c;' : ''}">${d}</th>`).join('')}
+        `;
+
+        if (zeroKaes.length === 0) {
+            zeroSalesHtml = `<tr><td colspan="10" style="text-align:center; padding: 20px; color:#64748b; font-style: italic;">${t('noZeroSales')}</td></tr>`;
+        } else {
+            zeroSalesHtml = zeroKaes.map(k => {
+                let dHtml = k.salesByDay.map((s, i) => {
+                    let isTarget = targetDays.includes(i);
+                    let val = s === 0 ? "-" : fmt(s);
+                    let style = isTarget ? "background:#fff7ed; color:#ea580c; font-weight:bold;" : (s>0?"color:green;":"color:#94a3b8;");
+                    return `<td style="${style}">${val}</td>`;
+                }).join('');
+                return `<tr>
+                    <td class="label-cell">${k.hq || "-"}</td>
+                    <td class="label-cell">${k.area || "-"}</td>
+                    <td class="label-cell">${k.kam || "-"}</td>
+                    <td class="label-cell" style="color:var(--b6); font-weight:bold;">${k.name}</td>
+                    ${dHtml}
+                </tr>`;
+            }).join('');
+        }
+        document.getElementById('sub-zero-sales').innerText = `${formatWM(latestW, latestM)} | Quét 3 ngày làm việc: ${targetDays.map(i=>daysTxt[i]).sort().join(', ')}`;
+    } else {
+        zeroHeaderHtml = `<th>HQ</th><th>Area</th><th>KAM</th><th>KAE</th>${daysTxt.map(d=>`<th>${d}</th>`).join('')}`;
+        zeroSalesHtml = `<tr><td colspan="10" style="text-align:center; padding: 20px;">Không có dữ liệu</td></tr>`;
+        document.getElementById('sub-zero-sales').innerText = "";
+    }
+    
+    document.getElementById('zeroSalesHeaderRow').innerHTML = zeroHeaderHtml;
+    document.getElementById('zeroSalesTableBody').innerHTML = zeroSalesHtml;
 }
 
 function init() {
-    dbMaster = []; dbSales = [];
-    if (typeof dbMasterM5 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM5);
-    if (typeof dbSalesM5 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM5);
-    if (typeof dbMasterM6 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM6);
-    if (typeof dbSalesM6 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM6);
-    if (typeof dbMasterM7 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM7);
-    if (typeof dbSalesM7 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM7);
+    // 1. Loading Overlay sẽ hiển thị mặc định bằng CSS lúc tải trang.
+    // 2. Timeout 100ms để trình duyệt render được giao diện xoay của HTML trước khi chạy đoạn JS ghép mảng làm kẹt bộ nhớ (Main thread blocking)
+    setTimeout(() => {
+        dbMaster = []; dbSales = [];
+        if (typeof dbMasterM5 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM5);
+        if (typeof dbSalesM5 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM5);
+        if (typeof dbMasterM6 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM6);
+        if (typeof dbSalesM6 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM6);
+        if (typeof dbMasterM7 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM7);
+        if (typeof dbSalesM7 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM7);
 
-    initResizer(); setLang('vi'); 
+        initResizer(); setLang('vi'); 
+
+        // Tắt màn hình loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }, 100);
 }
 
 window.onload = init;
