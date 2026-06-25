@@ -94,7 +94,6 @@
             .personnel-filters { height: auto; min-height: 350px; }
             .main-content { padding: 10px; width: 100%; }
             .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-            #segmentKpiContainer { grid-template-columns: 1fr 1fr 1fr !important; } 
             .chart-box { padding: 12px; margin-bottom: 15px;}
             .label-cell, .seg-area-cell, .seg-name-cell { position: relative; left: auto; z-index: 1; }
         }
@@ -151,28 +150,16 @@
 
         <div class="chart-box">
             <div class="chart-title" data-i18n="cSegmentTitle">PHÂN TÍCH HIỆU SUẤT THEO PHÂN KHÚC KHÁCH HÀNG</div><div class="chart-subtitle" id="sub-segment"></div>
-            <div class="kpi-grid" id="segmentKpiContainer" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 20px;"></div><div class="table-wrap" id="segmentAreaTableContainer"></div>
+            <div class="table-wrap" id="segmentAreaTableContainer"></div>
         </div>
 
         <div class="chart-box">
             <div class="chart-title" data-i18n="cKamTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAM</div><div class="chart-subtitle" id="sub-kam"></div>
-            <div class="kpi-grid">
-                <div class="kpi-card"><div class="label" data-i18n="kamSales">TỔNG DOANH SỐ KAM</div><div class="value" id="kam-val-sales">0</div><div class="sub" data-i18n="kamSalesSub">VNĐ (Chưa VAT)</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kamContribArea">ĐÓNG GÓP DS CHO AREA</div><div class="value" id="kam-val-contrib-area">0%</div><div class="sub" data-i18n="kamContribAreaSub">% Doanh số Area</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kamContribNation">ĐÓNG GÓP DS CHO TOÀN QUỐC</div><div class="value" id="kam-val-contrib-nation">0%</div><div class="sub" data-i18n="kamContribNationSub">% Doanh số Toàn quốc</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kamBR">BUYING RATE BY KAM</div><div class="value" id="kam-val-buying-rate">0%</div><div class="sub" data-i18n="kamBRSub">Tỷ lệ KH Active / Tổng tuyến</div></div>
-            </div>
             <div style="height: 380px;"><canvas id="kamChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="kamHeaderRow"></tr></thead><tbody id="kamTableBody"></tbody></table></div>
         </div>
 
         <div class="chart-box">
             <div class="chart-title" data-i18n="cDayTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAE</div><div class="chart-subtitle" id="sub-kae"></div>
-            <div class="kpi-grid">
-                <div class="kpi-card"><div class="label" data-i18n="kaeSales">TỔNG DOANH SỐ KAE</div><div class="value" id="kae-val-sales">0</div><div class="sub" data-i18n="kamSalesSub">VNĐ (Chưa VAT)</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kaeContribArea">ĐÓNG GÓP DS CHO AREA</div><div class="value" id="kae-val-contrib-area">0%</div><div class="sub" data-i18n="kamSalesSub">% Doanh số Area</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kaeContribNation">ĐÓNG GÓP DS CHO TOÀN QUỐC</div><div class="value" id="kae-val-contrib-nation">0%</div><div class="sub" data-i18n="kamContribNationSub">% Doanh số Toàn quốc</div></div>
-                <div class="kpi-card"><div class="label" data-i18n="kaeBR">TỶ LỆ LÊN ĐƠN CỦA KHÁCH HÀNG</div><div class="value" id="kae-val-buying-rate">0%</div><div class="sub" data-i18n="kamBRSub">Tỷ lệ KH Active / Tổng tuyến</div></div>
-            </div>
             <div style="height: 380px;"><canvas id="dayChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="dayHeaderRow"></tr></thead><tbody id="dayTableBody"></tbody></table></div>
         </div>
 
@@ -222,9 +209,6 @@ const dict = {
         tblColArea: "Chỉ số / Khu vực", tblColKam: "Chỉ số / Ngày (KAM)", tblColDay: "Chỉ số / Ngày (KAE)",
         rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", rowStrike: "Strike Rate",
         days: ["T2", "T3", "T4", "T5", "T6", "T7"], multiRoute: "Nhiều tuyến", noRoute: "Không có tuyến",
-        kamSales: "TỔNG SELL OUT KAM", kamSalesSub: "VNĐ (Chưa VAT)", kamBR: "TỶ LỆ LÊN ĐƠN CỦA TEAM", kamBRSub: "Tỷ lệ KH Active / Tổng tuyến",
-        kamContribArea: "ĐÓNG GÓP SELL OUT CHO AREA", kamContribAreaSub: "% Doanh số Area", kamContribNation: "ĐÓNG GÓP SELL OUT CHO TOÀN QUỐC", kamContribNationSub: "% Doanh số Toàn quốc",
-        kaeSales: "TỔNG SELL OUT KAE", kaeBR: "TỶ LỆ LÊN ĐƠN CỦA KHÁCH HÀNG DO KAE CHĂM SÓC", kaeContribArea: "ĐÓNG GÓP SELL OUT CỦA KAE CHO AREA", kaeContribNation: "ĐÓNG GÓP SELL OUT CỦA KAE CHO TOÀN QUỐC",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
         nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR", warnDays: "Ngày không phát sinh DS"
@@ -241,9 +225,6 @@ const dict = {
         tblColArea: "Metric / Area", tblColKam: "Metric / Day (KAM)", tblColDay: "Metric / Day (KAE)",
         rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", rowStrike: "Strike Rate",
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
-        kamSales: "TOTAL SELL OUT BY KAM", kamSalesSub: "VND (Excl. VAT)", kamBR: "CUSTOMER BUYING RATE", kamBRSub: "Active / Total Route",
-        kamContribArea: "SELL OUT CONTRIBUTES TO AREA", kamContribAreaSub: "% Sales / Area", kamContribNation: "SELL OUT CONTRIBUTES TO NATIONWIDE", kamContribNationSub: "% Sales / Nationwide",
-        kaeSales: "TOTAL SELL OUT BY KAE", kaeBR: "CUSTOMER BUYING RATE", kaeContribArea: "KAE SELL OUT CONTRIBUTES TO AREA", kaeContribNation: "KAE SELL OUT CONTRIBUTES TO NATIONWIDE",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
         nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales"
@@ -251,7 +232,6 @@ const dict = {
 };
 
 const segNames = { 'A': 'Class A (10MVND above)', 'B': 'Class B (5 MVND -> 9.9 MVND)', 'C': 'Class C (3 MVND -> 4.9 MVND)', 'D': 'Class D (below 3 MVND)', 'N': 'Is Classifying (0 MVND to less than 1 MVND)' };
-const segColors = { 'A': '#16a34a', 'B': '#2563eb', 'C': '#ea580c', 'D': '#dc2626', 'N': '#64748b' };
 const monthOrder = { "jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sep":9, "oct":10, "nov":11, "dec":12 };
 
 let lang = 'vi';
@@ -331,34 +311,14 @@ const aggregateDualData = (masterSubset, salesSubset) => {
 };
 
 function renderSegmentTable(masterSubset, salesSubset) {
-    let cusSegmentMap = {}; let uniqueMasterCus = new Set();
+    let cusSegmentMap = {}; 
     masterSubset.forEach(d => {
         if (d.cusCode) {
             cusSegmentMap[d.cusCode] = d.CusS ? String(d.CusS).toUpperCase().trim() : "N";
-            uniqueMasterCus.add(d.cusCode);
         }
     });
 
-    let globalSegCount = { 'A': 0, 'B': 0, 'C': 0, 'D': 0, 'N': 0 };
-    uniqueMasterCus.forEach(code => {
-        let seg = cusSegmentMap[code] || 'N';
-        if(globalSegCount[seg] !== undefined) globalSegCount[seg]++; else globalSegCount['N']++; 
-    });
-
-    let totalCus = uniqueMasterCus.size; let kpiHtml = ''; let segList = ['A', 'B', 'C', 'D', 'N'];
-    segList.forEach(seg => {
-        let count = globalSegCount[seg]; let pct = totalCus > 0 ? ((count / totalCus) * 100).toFixed(1) + '%' : '0%';
-        let color = segColors[seg]; let displayTitle = (seg === 'N') ? "IS CLASSIFYING" : `CLASS ${seg}`;
-        kpiHtml += `
-            <div class="kpi-card" style="padding: 12px; border-bottom: 4px solid ${color};">
-                <div class="label" style="color: ${color}; font-weight: 800;">${displayTitle}</div>
-                <div class="value" style="color: var(--b7); font-size: 18px;">${fmt(count)}</div>
-                <div class="sub" style="color: #64748b; font-size: 11px; margin-top: 4px;">Tỷ trọng: <b style="color: ${color};">${pct}</b></div>
-            </div>`;
-    });
-    const kpiContainer = document.getElementById('segmentKpiContainer');
-    if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
-
+    let segList = ['A', 'B', 'C', 'D', 'N'];
     let matrix = {};
     const forceNationwide = (filters.area.length === 0);
     const natKey = t('nationwide');
@@ -427,7 +387,6 @@ function renderSegmentTable(masterSubset, salesSubset) {
 function renderNoSalesStaff() {
     if (dbMaster.length === 0 && dbSales.length === 0) return;
 
-    // 1. Quét CỘT MỐC THỜI GIAN CHỈ TỪ dbSales (Tránh lấy nhầm ngày tương lai chưa diễn ra)
     let dateSet = new Set();
     dbSales.forEach(d => {
         if (d.month && getW(d) && d.day && Number(d.sales) > 0) {
@@ -437,7 +396,6 @@ function renderNoSalesStaff() {
 
     let dates = Array.from(dateSet).map(s => JSON.parse(s));
     
-    // 2. Sắp xếp CHÍNH XÁC theo trật tự thời gian từ cũ đến mới
     dates.sort((a, b) => {
         let m1 = monthOrder[a.m.toLowerCase()] || 0;
         let m2 = monthOrder[b.m.toLowerCase()] || 0;
@@ -446,7 +404,6 @@ function renderNoSalesStaff() {
         return parseDay(a.d) - parseDay(b.d);
     });
 
-    // 3. Bốc ra 2 NGÀY MỚI NHẤT đã có dữ liệu Sales
     let last2Days = dates.slice(-2);
     if(last2Days.length === 0) {
         document.getElementById('warningBox').style.display = 'none';
@@ -468,7 +425,6 @@ function renderNoSalesStaff() {
         return n.includes("KAE") || n.includes("DSR");
     };
 
-    // 4. Tìm những nhân viên CÓ LỊCH ĐI TUYẾN trong 2 ngày này (loại bỏ nhân sự đã nghỉ ❌)
     let plannedMap = new Map();
     dbMaster.forEach(d => {
         let rawName = String(d.kae || "").trim();
@@ -481,7 +437,6 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 5. Lưu lại những ngày mà nhân sự CÓ PHÁT SINH SỐ
     let salesMap = new Map();
     dbSales.forEach(d => {
         let rawName = String(d.kae || "").trim();
@@ -492,7 +447,6 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 6. Đối chiếu: Nếu có lịch đi tuyến nhưng TẤT CẢ các lịch đó đều không có số -> cảnh báo
     let noSalesList = [];
     plannedMap.forEach((info, kName) => {
         let activeDays = salesMap.get(kName) || new Set();
@@ -504,14 +458,12 @@ function renderNoSalesStaff() {
             }
         });
         
-        // Cảnh báo nếu họ có miss lịch và HOÀN TOÀN KHÔNG CÓ SỐ trong 2 ngày mới nhất
         if (missed.length > 0 && activeDays.size === 0) { 
             info.missedDays = missed.map(d => formatDateToDDMMYYYY(d));
             noSalesList.push(info);
         }
     });
 
-    // Hiển thị UI
     const box = document.getElementById('warningBox');
     const tbody = document.getElementById('warningTableBody');
     const subTitle = document.getElementById('sub-warning');
@@ -776,6 +728,7 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
 function render() {
     if (dbMaster.length === 0 && dbSales.length === 0) return; 
 
+    // Base Apply F (dùng chung cho tổng và các biểu đồ phụ)
     const baseApplyF = d => (filters.month.length === 0 || filters.month.includes(d.month)) && 
                             (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase())) && 
                             (filters.hq.length === 0 || filters.hq.includes(d.hq)) && 
@@ -783,6 +736,17 @@ function render() {
     const baseMaster = dbMaster.filter(baseApplyF);
     const baseSales = dbSales.filter(baseApplyF);
 
+    // =================================================================================
+    // LOGIC ĐẶC BIỆT CHO BIỂU ĐỒ AREA (Bỏ qua bộ lọc Area để lấy cái nhìn tổng quan)
+    // =================================================================================
+    const areaImmuneApplyF = d => (filters.month.length === 0 || filters.month.includes(d.month)) && 
+                                  (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase())) && 
+                                  (filters.hq.length === 0 || filters.hq.includes(d.hq));
+    
+    const areaImmuneMaster = dbMaster.filter(areaImmuneApplyF);
+    const areaImmuneSales = dbSales.filter(areaImmuneApplyF);
+
+    // Filter KAM & KAE
     const kamApplyF = d => baseApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
     const kamMaster = dbMaster.filter(kamApplyF);
     const kamSales = dbSales.filter(kamApplyF);
@@ -803,6 +767,7 @@ function render() {
     const kaeMaster = dbMaster.filter(kaeApplyF);
     const kaeSales = dbSales.filter(kaeApplyF);
 
+    // Render text Subtitle
     let ms = filters.month.length === 0 ? t('optAll') : filters.month.map(x => x.toUpperCase()).join(", ");
     let ws = filters.week.length === 0 ? t('optAll') : filters.week.join(", ");
     let hs = filters.hq.length === 0 ? t('optAll') : filters.hq.join(", ");
@@ -827,25 +792,30 @@ function render() {
     let kamSub = `${baseSub} | KAM: ${kamsDisp}`;
     let kaeSub = `${kamSub} | KAE: ${kaesDisp}`;
 
-    if(document.getElementById('sub-area')) document.getElementById('sub-area').innerText = baseSub;
+    if(document.getElementById('sub-area')) document.getElementById('sub-area').innerText = `${t('fMonth')}: ${ms} | ${t('fWeek')}: ${ws} | ${t('fRegion')}: ${hs} | (Bỏ qua bộ lọc Area)`;
     if(document.getElementById('sub-segment')) document.getElementById('sub-segment').innerText = baseSub;
     if(document.getElementById('sub-kam')) document.getElementById('sub-kam').innerText = kamSub;
     if(document.getElementById('sub-kae')) document.getElementById('sub-kae').innerText = kaeSub;
     if(document.getElementById('sub-week')) document.getElementById('sub-week').innerText = kaeSub;
 
+    // KPI Hệ thống (Trên cùng)
     const sysKPI = aggregateDualData(baseMaster, baseSales);
     document.getElementById("val-sales").innerText = fmt(sysKPI.s);
     document.getElementById("val-cust").innerText = fmt(sysKPI.tc);
     document.getElementById("val-strike").innerText = fmt(sysKPI.ac);
     document.getElementById("val-strike-rate").innerText = (sysKPI.tc > 0 ? (sysKPI.ac/sysKPI.tc*100).toFixed(1) : 0) + "%";
 
-    const areas = [...new Set([...baseMaster.map(d=>d.area), ...baseSales.map(d=>d.area)])].filter(Boolean).sort(); 
-    const areaData = areas.map(a => ({ label: a, ...aggregateDualData(baseMaster.filter(d => d.area === a), baseSales.filter(d => d.area === a)) }));
+    // Chart & Table Area (Sử dụng Dataset areaImmune)
+    const areas = [...new Set([...areaImmuneMaster.map(d=>d.area), ...areaImmuneSales.map(d=>d.area)])].filter(Boolean).sort(); 
+    const areaData = areas.map(a => ({ label: a, ...aggregateDualData(areaImmuneMaster.filter(d => d.area === a), areaImmuneSales.filter(d => d.area === a)) }));
     drawChart('areaChart', areaData, 'label');
-    drawTable('areaHeaderRow', 'areaTableBody', areaData, t('tblColArea'), 'label', false, false, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...sysKPI, route: "-" });
+    const areaSysKPI = aggregateDualData(areaImmuneMaster, areaImmuneSales);
+    drawTable('areaHeaderRow', 'areaTableBody', areaData, t('tblColArea'), 'label', false, false, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...areaSysKPI, route: "-" });
 
+    // Table Phân khúc
     renderSegmentTable(baseMaster, baseSales);
 
+    // Chart & Table KAE, KAM, Tuần
     const getDayData = (mSubset, sSubset) => {
         return [0, 1, 2, 3, 4, 5].map(idx => {
             const mDay = mSubset.filter(d => parseDay(d.day) === idx);
@@ -896,14 +866,6 @@ function render() {
 
     drawChart('weekChart', weekData, 'label');
     drawTable('weekHeaderRow', 'weekTableBody', weekData, t('tblColWeek'), 'label', false, true, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...aggregateDualData(kaeMaster, kaeSales), route: "-" });
-
-    const areaSalesTotal = areaData.reduce((sum, a) => sum + a.s, 0); 
-    const nationSalesTotal = dbSales.filter(d => (filters.month.length === 0 || filters.month.includes(d.month)) && (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase()))).reduce((a,b)=>a+(Number(b.sales)||0),0);
-
-    document.getElementById("kam-val-sales").innerText = fmt(kamAgg.s); document.getElementById("kam-val-buying-rate").innerText = kamAgg.tc > 0 ? (kamAgg.ac / kamAgg.tc * 100).toFixed(1) + "%" : "0%";
-    document.getElementById("kam-val-contrib-area").innerText = areaSalesTotal > 0 ? (kamAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kam-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kamAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
-    document.getElementById("kae-val-sales").innerText = fmt(kaeAgg.s); document.getElementById("kae-val-buying-rate").innerText = kaeAgg.tc > 0 ? (kaeAgg.ac / kaeAgg.tc * 100).toFixed(1) + "%" : "0%";
-    document.getElementById("kae-val-contrib-area").innerText = areaSalesTotal > 0 ? (kaeAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kae-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kaeAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
 
     renderNoSalesStaff(); // Cập nhật bảng cảnh báo
 }
