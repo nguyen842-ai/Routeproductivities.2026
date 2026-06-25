@@ -188,9 +188,10 @@
                 <table class="data-table warning-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%; text-align: left;" data-i18n="warnArea">Khu vực (Area)</th>
-                            <th style="width: 35%; text-align: left;" data-i18n="warnKam">Quản lý KAM</th>
-                            <th style="width: 40%; text-align: left;" data-i18n="warnKae">Nhân viên KAE / DSR</th>
+                            <th style="width: 20%; text-align: left;" data-i18n="warnArea">Khu vực (Area)</th>
+                            <th style="width: 25%; text-align: left;" data-i18n="warnKam">Quản lý KAM</th>
+                            <th style="width: 30%; text-align: left;" data-i18n="warnKae">Nhân viên KAE / DSR</th>
+                            <th style="width: 25%; text-align: left;" data-i18n="warnDays">Ngày không phát sinh DS</th>
                         </tr>
                     </thead>
                     <tbody id="warningTableBody"></tbody>
@@ -226,7 +227,7 @@ const dict = {
         kaeSales: "TỔNG SELL OUT KAE", kaeBR: "TỶ LỆ LÊN ĐƠN CỦA KHÁCH HÀNG DO KAE CHĂM SÓC", kaeContribArea: "ĐÓNG GÓP SELL OUT CỦA KAE CHO AREA", kaeContribNation: "ĐÓNG GÓP SELL OUT CỦA KAE CHO TOÀN QUỐC",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
-        nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR"
+        nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR", warnDays: "Ngày không phát sinh DS"
     },
     en: {
         loading: "LOADING DATA...",
@@ -245,7 +246,7 @@ const dict = {
         kaeSales: "TOTAL SELL OUT BY KAE", kaeBR: "CUSTOMER BUYING RATE", kaeContribArea: "KAE SELL OUT CONTRIBUTES TO AREA", kaeContribNation: "KAE SELL OUT CONTRIBUTES TO NATIONWIDE",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
-        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff"
+        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales"
     }
 };
 
@@ -420,71 +421,88 @@ function renderSegmentTable(masterSubset, salesSubset) {
     document.getElementById('segmentAreaTableContainer').innerHTML = html;
 }
 
+// ====================================================================================
+// LOGIC CẢNH BÁO NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ (Tối thiểu 2 ngày mới nhất)
+// ====================================================================================
 function renderNoSalesStaff() {
     if (dbMaster.length === 0 && dbSales.length === 0) return;
 
-    // 1. Tìm ra tất cả các "ngày" có trong Database
+    // 1. Quét toàn bộ các CỘT MỐC THỜI GIAN có xuất hiện trong dữ liệu tổng
     let dateSet = new Set();
     [...dbMaster, ...dbSales].forEach(d => {
         if (d.month && getW(d) && d.day) {
+            // Lưu trữ thành Object JSON để dễ sắp xếp
             dateSet.add(JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()}));
         }
     });
 
     let dates = Array.from(dateSet).map(s => JSON.parse(s));
     
-    // 2. Sắp xếp giảm dần: Tháng -> Tuần -> Ngày
+    // 2. Sắp xếp CHÍNH XÁC theo trật tự thời gian từ cũ đến mới (Tháng -> Tuần -> Ngày)
     dates.sort((a, b) => {
         let m1 = monthOrder[a.m.toLowerCase()] || 0;
         let m2 = monthOrder[b.m.toLowerCase()] || 0;
-        if(m1 !== m2) return m2 - m1;
-        if(a.w !== b.w) return b.w.localeCompare(a.w);
-        return parseDay(b.d) - parseDay(a.d);
+        if(m1 !== m2) return m1 - m2;
+        if(a.w !== b.w) return a.w.localeCompare(b.w);
+        return parseDay(a.d) - parseDay(b.d);
     });
 
-    // 3. Lấy 2 ngày mới nhất
-    let last2Days = dates.slice(0, 2);
+    // 3. Bốc ra 2 NGÀY MỚI NHẤT hiện đang có data 
+    let last2Days = dates.slice(-2);
     if(last2Days.length === 0) return;
 
-    // Helper kiểm tra 1 record có nằm trong 2 ngày này không
-    const isTargetDate = (rec) => {
-        let rm = rec.month, rw = getW(rec).toUpperCase(), rd = String(rec.day).toLowerCase().trim();
-        return last2Days.some(td => td.m === rm && td.w === rw && td.d === rd);
+    // Hàm chuyển đổi format Ngày. (Chỉnh logic này nếu bạn có bảng map dd/mm/yyyy thực tế)
+    const formatDateToDDMMYYYY = (dateObj) => {
+         let dayName = dateObj.d.toUpperCase();
+         return `${dayName}, ${dateObj.w}-${dateObj.m}`; // Ví dụ: WED, W1-May
     };
 
-    // Helper kiểm tra tên có phải là KAE/DSR không
+    const isTargetDate = (rec, targetDates) => {
+        let rm = rec.month, rw = getW(rec).toUpperCase(), rd = String(rec.day).toLowerCase().trim();
+        return targetDates.some(td => td.m === rm && td.w === rw && td.d === rd);
+    };
+
     const isKaeOrDsr = (nameStr) => {
         let n = String(nameStr || "").toUpperCase();
         return n.includes("KAE") || n.includes("DSR");
     };
 
-    // 4. Lọc danh sách nhân viên CÓ PLAN trong 2 ngày này
-    let plannedMap = new Map(); // key: kae_raw_name, value: { area, kam, kae }
+    // 4. Lọc nhân sự có Plan trong 2 ngày này VÀ KHÔNG CHỨA DẤU THÔI VIỆC "❌"
+    let plannedMap = new Map();
     dbMaster.forEach(d => {
-        if(isTargetDate(d) && isKaeOrDsr(d.kae)) {
-            let kName = String(d.kae).trim();
-            if(!plannedMap.has(kName)) {
-                plannedMap.set(kName, { area: d.area, kam: d.kam, kae: kName });
+        let rawName = String(d.kae || "").trim();
+        // Bỏ qua nếu có chứa ❌
+        if(isTargetDate(d, last2Days) && isKaeOrDsr(rawName) && !rawName.includes("❌")) {
+            if(!plannedMap.has(rawName)) {
+                plannedMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName, missedDays: [] });
             }
         }
     });
 
-    // 5. Lọc danh sách nhân viên CÓ SALES trong 2 ngày này
-    let activeSet = new Set();
+    // 5. Quét Sales thực tế trong 2 ngày này của những người thỏa mãn điều kiện
+    let salesMap = new Map();
     dbSales.forEach(d => {
-        if(isTargetDate(d) && isKaeOrDsr(d.kae) && Number(d.sales) > 0) {
-            activeSet.add(String(d.kae).trim());
+        let rawName = String(d.kae || "").trim();
+        if(isTargetDate(d, last2Days) && isKaeOrDsr(rawName) && !rawName.includes("❌") && Number(d.sales) > 0) {
+            if(!salesMap.has(rawName)) salesMap.set(rawName, new Set());
+            let dateStr = JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()});
+            salesMap.get(rawName).add(dateStr);
         }
     });
 
-    // 6. Tìm ra những người có Plan nhưng KHÔNG có Sales
+    // 6. Tìm ra người KHÔNG PHÁT SINH SỐ Ở CẢ 2 NGÀY MỚI NHẤT
     let noSalesList = [];
     plannedMap.forEach((info, kName) => {
-        if(!activeSet.has(kName)) {
+        let activeDays = salesMap.get(kName) || new Set();
+        
+        // Nghĩa là trong 2 ngày lớn nhất, họ không hề có số ngày nào
+        if (activeDays.size === 0) {
+            info.missedDays = last2Days.map(d => formatDateToDDMMYYYY(d));
             noSalesList.push(info);
         }
     });
 
+    // Hiển thị UI
     const box = document.getElementById('warningBox');
     const tbody = document.getElementById('warningTableBody');
     const subTitle = document.getElementById('sub-warning');
@@ -493,10 +511,9 @@ function renderNoSalesStaff() {
         box.style.display = 'none';
     } else {
         box.style.display = 'block';
-        let subText = last2Days.map(d => `${d.d.charAt(0).toUpperCase() + d.d.slice(1)} ${d.w} ${d.m}`).join(" & ");
-        subTitle.innerText = (lang === 'vi' ? "Dữ liệu đối chiếu: " : "Checking data from: ") + subText;
+        let subText = last2Days.map(d => formatDateToDDMMYYYY(d)).join(" & ");
+        subTitle.innerText = (lang === 'vi' ? "Dữ liệu đối chiếu 2 ngày mới nhất: " : "Checking latest 2 days: ") + subText;
 
-        // Sắp xếp theo Area -> KAM -> KAE
         noSalesList.sort((a,b) => {
             if(a.area !== b.area) return String(a.area).localeCompare(String(b.area));
             if(a.kam !== b.kam) return String(a.kam).localeCompare(String(b.kam));
@@ -508,6 +525,7 @@ function renderNoSalesStaff() {
                 <td style="text-align: left; font-weight: bold;">${info.area || '-'}</td>
                 <td style="text-align: left; color: var(--b6);">${info.kam || '-'}</td>
                 <td style="text-align: left; color: #dc2626; font-weight: 600;">${info.kae}</td>
+                <td style="text-align: left; font-style: italic; font-size: 12px;">${info.missedDays.join("<br>")}</td>
             </tr>
         `).join("");
     }
@@ -893,7 +911,7 @@ function init() {
     initResizer(); 
     setLang('vi'); 
 
-    // Tắt màn hình Loading sau khi hoàn tất init (để khoảng trễ 0.6s cho mượt)
+    // Tắt màn hình Loading sau khi hoàn tất init
     setTimeout(() => {
         const loader = document.getElementById('loader-wrapper');
         loader.style.opacity = '0';
