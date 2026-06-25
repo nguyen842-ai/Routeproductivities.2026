@@ -427,18 +427,17 @@ function renderSegmentTable(masterSubset, salesSubset) {
 function renderNoSalesStaff() {
     if (dbMaster.length === 0 && dbSales.length === 0) return;
 
-    // 1. Quét toàn bộ các CỘT MỐC THỜI GIAN có xuất hiện trong dữ liệu tổng
+    // 1. Quét CỘT MỐC THỜI GIAN CHỈ TỪ dbSales (Tránh lấy nhầm ngày tương lai chưa diễn ra)
     let dateSet = new Set();
-    [...dbMaster, ...dbSales].forEach(d => {
-        if (d.month && getW(d) && d.day) {
-            // Lưu trữ thành Object JSON để dễ sắp xếp
+    dbSales.forEach(d => {
+        if (d.month && getW(d) && d.day && Number(d.sales) > 0) {
             dateSet.add(JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()}));
         }
     });
 
     let dates = Array.from(dateSet).map(s => JSON.parse(s));
     
-    // 2. Sắp xếp CHÍNH XÁC theo trật tự thời gian từ cũ đến mới (Tháng -> Tuần -> Ngày)
+    // 2. Sắp xếp CHÍNH XÁC theo trật tự thời gian từ cũ đến mới
     dates.sort((a, b) => {
         let m1 = monthOrder[a.m.toLowerCase()] || 0;
         let m2 = monthOrder[b.m.toLowerCase()] || 0;
@@ -447,14 +446,16 @@ function renderNoSalesStaff() {
         return parseDay(a.d) - parseDay(b.d);
     });
 
-    // 3. Bốc ra 2 NGÀY MỚI NHẤT hiện đang có data 
+    // 3. Bốc ra 2 NGÀY MỚI NHẤT đã có dữ liệu Sales
     let last2Days = dates.slice(-2);
-    if(last2Days.length === 0) return;
+    if(last2Days.length === 0) {
+        document.getElementById('warningBox').style.display = 'none';
+        return;
+    }
 
-    // Hàm chuyển đổi format Ngày. (Chỉnh logic này nếu bạn có bảng map dd/mm/yyyy thực tế)
     const formatDateToDDMMYYYY = (dateObj) => {
          let dayName = dateObj.d.toUpperCase();
-         return `${dayName}, ${dateObj.w}-${dateObj.m}`; // Ví dụ: WED, W1-May
+         return `${dayName}, ${dateObj.w}-${dateObj.m}`; 
     };
 
     const isTargetDate = (rec, targetDates) => {
@@ -467,19 +468,20 @@ function renderNoSalesStaff() {
         return n.includes("KAE") || n.includes("DSR");
     };
 
-    // 4. Lọc nhân sự có Plan trong 2 ngày này VÀ KHÔNG CHỨA DẤU THÔI VIỆC "❌"
+    // 4. Tìm những nhân viên CÓ LỊCH ĐI TUYẾN trong 2 ngày này (loại bỏ nhân sự đã nghỉ ❌)
     let plannedMap = new Map();
     dbMaster.forEach(d => {
         let rawName = String(d.kae || "").trim();
-        // Bỏ qua nếu có chứa ❌
         if(isTargetDate(d, last2Days) && isKaeOrDsr(rawName) && !rawName.includes("❌")) {
             if(!plannedMap.has(rawName)) {
-                plannedMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName, missedDays: [] });
+                plannedMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName, plannedDates: new Set() });
             }
+            let dateStr = JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()});
+            plannedMap.get(rawName).plannedDates.add(dateStr);
         }
     });
 
-    // 5. Quét Sales thực tế trong 2 ngày này của những người thỏa mãn điều kiện
+    // 5. Lưu lại những ngày mà nhân sự CÓ PHÁT SINH SỐ
     let salesMap = new Map();
     dbSales.forEach(d => {
         let rawName = String(d.kae || "").trim();
@@ -490,14 +492,21 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 6. Tìm ra người KHÔNG PHÁT SINH SỐ Ở CẢ 2 NGÀY MỚI NHẤT
+    // 6. Đối chiếu: Nếu có lịch đi tuyến nhưng TẤT CẢ các lịch đó đều không có số -> cảnh báo
     let noSalesList = [];
     plannedMap.forEach((info, kName) => {
         let activeDays = salesMap.get(kName) || new Set();
+        let missed = [];
         
-        // Nghĩa là trong 2 ngày lớn nhất, họ không hề có số ngày nào
-        if (activeDays.size === 0) {
-            info.missedDays = last2Days.map(d => formatDateToDDMMYYYY(d));
+        info.plannedDates.forEach(dateStr => {
+            if(!activeDays.has(dateStr)) {
+                missed.push(JSON.parse(dateStr));
+            }
+        });
+        
+        // Cảnh báo nếu họ có miss lịch và HOÀN TOÀN KHÔNG CÓ SỐ trong 2 ngày mới nhất
+        if (missed.length > 0 && activeDays.size === 0) { 
+            info.missedDays = missed.map(d => formatDateToDDMMYYYY(d));
             noSalesList.push(info);
         }
     });
@@ -525,7 +534,7 @@ function renderNoSalesStaff() {
                 <td style="text-align: left; font-weight: bold;">${info.area || '-'}</td>
                 <td style="text-align: left; color: var(--b6);">${info.kam || '-'}</td>
                 <td style="text-align: left; color: #dc2626; font-weight: 600;">${info.kae}</td>
-                <td style="text-align: left; font-style: italic; font-size: 12px;">${info.missedDays.join("<br>")}</td>
+                <td style="text-align: left; font-style: italic; font-size: 12px; font-weight: bold; color: #ef4444;">${info.missedDays.join("<br>")}</td>
             </tr>
         `).join("");
     }
