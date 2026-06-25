@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Route Productivity Dashboard © 2026 TCI All rights reserved</title>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
     <style>
         /* =========================================================
            1. CẤU HÌNH MÀU SẮC & GIAO DIỆN CHUNG
@@ -193,10 +190,17 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="kamMap.js"></script>
+    // MUỐN LƯU CATCHE FILE NÀO THÌ THÊM DÒNG VÀO ĐÂY
 <script src="dataM5.js"></script>
-<script src="dataM6.js"></script>
-<script src="dataM7.js"></script>
+
+<script>
+    // Tự động tạo một dãy số ngẫu nhiên theo thời gian để đánh lừa GitHub và Trình duyệt
+    var version = '?t=' + new Date().getTime();
+    
+    // Ép tải mới CÁC THÁNG CHƯA XỬ LÍ HOÀN TẤT DỮ LIỆU THÁNG
+    document.write('<script src="kamMap.js' + version + '"><\/script>');
+    document.write('<script src="dataM6.js' + version + '"><\/script>');
+</script>
 
 <script>
 const dict = {
