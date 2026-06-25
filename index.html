@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Productivity Dashboard © 2026 TCI All rights reserved </title>
+    <title>Route Productivity Dashboard © 2026 TCI All rights reserved</title>
     <style>
         /* =========================================================
            1. CẤU HÌNH MÀU SẮC & GIAO DIỆN CHUNG
@@ -15,6 +15,12 @@
         * { -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f0f4f8; color: var(--b7); font-size: 13px; overflow-x: hidden; }
         .db-container { display: flex; min-height: 100vh; position: relative; }
+
+        /* LOADING SCREEN */
+        #loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--b2); border-top: 4px solid var(--b6); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-text { margin-top: 15px; font-size: 14px; font-weight: bold; color: var(--b6); letter-spacing: 1px;}
 
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; transition: opacity 0.3s; }
         .overlay.show { display: block; opacity: 1; }
@@ -72,6 +78,12 @@
         .segment-table td { padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; white-space: nowrap; }
         .seg-area-cell { background-color: #f8fafc; font-weight: bold; text-align: left !important; color: var(--b6); border-right: 2px solid var(--b3) !important; position: sticky; left: 0; z-index: 2;}
         .seg-name-cell { text-align: left !important; font-weight: 600; color: #475569; position: sticky; left: 0; background: white; z-index: 1; }
+        .pct-badge { display: inline-block; background-color: #e2e8f0; color: #475569; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 5px; }
+
+        .warning-box { border: 2px solid #ef4444; }
+        .warning-title { color: #dc2626; }
+        .warning-title::before { background: #ef4444; }
+        .warning-table th { background: #ef4444; }
 
         @media screen and (max-width: 768px) {
             .menu-btn { display: flex; } 
@@ -89,6 +101,11 @@
     </style>
 </head>
 <body>
+
+<div id="loader-wrapper">
+    <div class="spinner"></div>
+    <div class="loader-text" data-i18n="loading">ĐANG TẢI DỮ LIỆU...</div>
+</div>
 
 <div class="db-container">
     <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
@@ -163,6 +180,24 @@
             <div class="chart-title" data-i18n="cWeekTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN</div><div class="chart-subtitle" id="sub-week"></div>
             <div style="height: 380px;"><canvas id="weekChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="weekHeaderRow"></tr></thead><tbody id="weekTableBody"></tbody></table></div>
         </div>
+
+        <div class="chart-box warning-box" id="warningBox" style="display: none;">
+            <div class="chart-title warning-title" data-i18n="cWarningTitle">⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT</div>
+            <div class="chart-subtitle" id="sub-warning" style="color: #dc2626;"></div>
+            <div class="table-wrap">
+                <table class="data-table warning-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%; text-align: left;" data-i18n="warnArea">Khu vực (Area)</th>
+                            <th style="width: 35%; text-align: left;" data-i18n="warnKam">Quản lý KAM</th>
+                            <th style="width: 40%; text-align: left;" data-i18n="warnKae">Nhân viên KAE / DSR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="warningTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -175,6 +210,7 @@
 <script>
 const dict = {
     vi: {
+        loading: "ĐANG TẢI DỮ LIỆU...",
         sysTitle: "HIỆU SUẤT TUYẾN BÁN HÀNG", fMonth: "Tháng", fWeek: "Tuần", fRegion: "Miền", fArea: "Khu vực", optAll: "Tất cả", 
         allKam: "TẤT CẢ KAM", allKae: "TẤT CẢ KAE/DSR", kpiSales: "TỔNG SELL OUT", kpiSalesSub: "VNĐ (Chưa VAT)", 
         kpiTotal: "TỔNG KH TRÊN TUYẾN", kpiTotalSub: "khách hàng", kpiActive: "Khách Active", kpiActiveSub: "khách hàng", 
@@ -189,9 +225,11 @@ const dict = {
         kamContribArea: "ĐÓNG GÓP SELL OUT CHO AREA", kamContribAreaSub: "% Doanh số Area", kamContribNation: "ĐÓNG GÓP SELL OUT CHO TOÀN QUỐC", kamContribNationSub: "% Doanh số Toàn quốc",
         kaeSales: "TỔNG SELL OUT KAE", kaeBR: "TỶ LỆ LÊN ĐƠN CỦA KHÁCH HÀNG DO KAE CHĂM SÓC", kaeContribArea: "ĐÓNG GÓP SELL OUT CỦA KAE CHO AREA", kaeContribNation: "ĐÓNG GÓP SELL OUT CỦA KAE CHO TOÀN QUỐC",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
-        segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active"
+        segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
+        nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR"
     },
     en: {
+        loading: "LOADING DATA...",
         sysTitle: "ROUTE PRODUCTIVITIES REPORT", fMonth: "Month", fWeek: "Week", fRegion: "Region", fArea: "Area", optAll: "All", 
         allKam: "ALL KAMs", allKae: "ALL KAE/DSRs", kpiSales: "Total SELL OUT", kpiSalesSub: "VND (Excl. VAT)", 
         kpiTotal: "ROUTE TOTAL CUS.", kpiTotalSub: "Customers", kpiActive: "Active Customers", kpiActiveSub: "Customers", 
@@ -206,7 +244,8 @@ const dict = {
         kamContribArea: "SELL OUT CONTRIBUTES TO AREA", kamContribAreaSub: "% Sales / Area", kamContribNation: "SELL OUT CONTRIBUTES TO NATIONWIDE", kamContribNationSub: "% Sales / Nationwide",
         kaeSales: "TOTAL SELL OUT BY KAE", kaeBR: "CUSTOMER BUYING RATE", kaeContribArea: "KAE SELL OUT CONTRIBUTES TO AREA", kaeContribNation: "KAE SELL OUT CONTRIBUTES TO NATIONWIDE",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
-        segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust."
+        segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
+        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff"
     }
 };
 
@@ -320,16 +359,21 @@ function renderSegmentTable(masterSubset, salesSubset) {
     if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
 
     let matrix = {};
+    const forceNationwide = (filters.area.length === 0);
+    const natKey = t('nationwide');
+
     masterSubset.forEach(d => {
-        let area = d.area || "Unknown Area"; let code = d.cusCode; let seg = cusSegmentMap[code] || "N";
+        let area = forceNationwide ? natKey : (d.area || "Unknown Area"); 
+        let code = d.cusCode; let seg = cusSegmentMap[code] || "N";
         if (!matrix[area]) matrix[area] = {};
         if (!matrix[area][seg]) matrix[area][seg] = { planSet: new Set(), activeSet: new Set(), salesSum: 0 };
         if (code) matrix[area][seg].planSet.add(code);
     });
 
     salesSubset.forEach(d => {
-        let area = d.area || "Unknown Area"; let code = d.cusCode;
+        let code = d.cusCode;
         if (!code) return;
+        let area = forceNationwide ? natKey : (d.area || "Unknown Area"); 
         let seg = cusSegmentMap[code] || "N";
         if (!matrix[area]) matrix[area] = {};
         if (!matrix[area][seg]) matrix[area][seg] = { planSet: new Set(), activeSet: new Set(), salesSum: 0 };
@@ -340,7 +384,7 @@ function renderSegmentTable(masterSubset, salesSubset) {
 
     let html = `<table class="segment-table"><thead><tr style="background-color: var(--b6); color: white;"><th rowspan="2" style="width:20%;">${lang==='vi'?'Khu vực (Area)':'Area'}</th><th rowspan="2" style="width:25%;">${t('segColClass')}</th><th colspan="5" style="padding:4px;">${lang==='vi'?'Chỉ số chi tiết phân khúc':'Segment Breakdown'}</th></tr><tr style="background-color: var(--b5); color: white;"><th style="width:11%;">${t('segColPlan')}</th><th style="width:11%;">${t('segColAct')}</th><th style="width:11%;">${t('segColSR')}</th><th style="width:11%;">${t('segColSales')}</th><th style="width:11%;">${t('segColAvg')}</th></tr></thead><tbody>`;
 
-    let sortedAreas = Object.keys(matrix).sort();
+    let sortedAreas = forceNationwide ? [natKey] : Object.keys(matrix).sort();
     if(sortedAreas.length === 0) html += `<tr><td colspan="7" style="color:#999; padding:20px;">${lang==='vi'?'Không có dữ liệu phân khúc tương ứng bộ lọc':'No segment data matches filters'}</td></tr>`;
 
     sortedAreas.forEach(area => {
@@ -351,10 +395,19 @@ function renderSegmentTable(masterSubset, salesSubset) {
             let data = matrix[area][seg] || { planSet: new Set(), activeSet: new Set(), salesSum: 0 };
             let planCount = data.planSet.size; let actCount = data.activeSet.size;
             let sr = planCount > 0 ? ((actCount / planCount) * 100).toFixed(1) + '%' : '0.0%';
+            let pctPlan = areaPlanCount > 0 ? ((planCount / areaPlanCount) * 100).toFixed(1) + '%' : '0%';
+            let pctAct = areaActCount > 0 ? ((actCount / areaActCount) * 100).toFixed(1) + '%' : '0%';
             let sales = data.salesSum; let avg = actCount > 0 ? Math.round(sales / actCount) : 0;
+            
             html += `<tr>`;
-            if (isFirst) { html += `<td rowspan="6" class="seg-area-cell">${area}</td>`; isFirst = false; }
-            html += `<td class="seg-name-cell">${segNames[seg]}</td><td>${fmt(planCount)}</td><td style="color:green; font-weight:bold;">${fmt(actCount)}</td><td style="font-weight:bold;">${sr}</td><td style="text-align:right;">${fmt(sales)}</td><td style="text-align:right; color:var(--b5); font-weight:600;">${fmt(avg)}</td></tr>`;
+            if (isFirst) { 
+                html += `<td rowspan="6" class="seg-area-cell" ${forceNationwide ? 'style="font-size: 14px; text-align: center !important;"' : ''}>${area}</td>`; 
+                isFirst = false; 
+            }
+            html += `<td class="seg-name-cell">${segNames[seg]}</td>
+                     <td>${fmt(planCount)} <span class="pct-badge">${pctPlan}</span></td>
+                     <td style="color:green; font-weight:bold;">${fmt(actCount)} <span class="pct-badge">${pctAct}</span></td>
+                     <td style="font-weight:bold;">${sr}</td><td style="text-align:right;">${fmt(sales)}</td><td style="text-align:right; color:var(--b5); font-weight:600;">${fmt(avg)}</td></tr>`;
         });
 
         let areaSr = areaPlanCount > 0 ? ((areaActCount / areaPlanCount) * 100).toFixed(1) + '%' : '0.0%';
@@ -366,6 +419,100 @@ function renderSegmentTable(masterSubset, salesSubset) {
     html += `</tbody></table>`;
     document.getElementById('segmentAreaTableContainer').innerHTML = html;
 }
+
+function renderNoSalesStaff() {
+    if (dbMaster.length === 0 && dbSales.length === 0) return;
+
+    // 1. Tìm ra tất cả các "ngày" có trong Database
+    let dateSet = new Set();
+    [...dbMaster, ...dbSales].forEach(d => {
+        if (d.month && getW(d) && d.day) {
+            dateSet.add(JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()}));
+        }
+    });
+
+    let dates = Array.from(dateSet).map(s => JSON.parse(s));
+    
+    // 2. Sắp xếp giảm dần: Tháng -> Tuần -> Ngày
+    dates.sort((a, b) => {
+        let m1 = monthOrder[a.m.toLowerCase()] || 0;
+        let m2 = monthOrder[b.m.toLowerCase()] || 0;
+        if(m1 !== m2) return m2 - m1;
+        if(a.w !== b.w) return b.w.localeCompare(a.w);
+        return parseDay(b.d) - parseDay(a.d);
+    });
+
+    // 3. Lấy 2 ngày mới nhất
+    let last2Days = dates.slice(0, 2);
+    if(last2Days.length === 0) return;
+
+    // Helper kiểm tra 1 record có nằm trong 2 ngày này không
+    const isTargetDate = (rec) => {
+        let rm = rec.month, rw = getW(rec).toUpperCase(), rd = String(rec.day).toLowerCase().trim();
+        return last2Days.some(td => td.m === rm && td.w === rw && td.d === rd);
+    };
+
+    // Helper kiểm tra tên có phải là KAE/DSR không
+    const isKaeOrDsr = (nameStr) => {
+        let n = String(nameStr || "").toUpperCase();
+        return n.includes("KAE") || n.includes("DSR");
+    };
+
+    // 4. Lọc danh sách nhân viên CÓ PLAN trong 2 ngày này
+    let plannedMap = new Map(); // key: kae_raw_name, value: { area, kam, kae }
+    dbMaster.forEach(d => {
+        if(isTargetDate(d) && isKaeOrDsr(d.kae)) {
+            let kName = String(d.kae).trim();
+            if(!plannedMap.has(kName)) {
+                plannedMap.set(kName, { area: d.area, kam: d.kam, kae: kName });
+            }
+        }
+    });
+
+    // 5. Lọc danh sách nhân viên CÓ SALES trong 2 ngày này
+    let activeSet = new Set();
+    dbSales.forEach(d => {
+        if(isTargetDate(d) && isKaeOrDsr(d.kae) && Number(d.sales) > 0) {
+            activeSet.add(String(d.kae).trim());
+        }
+    });
+
+    // 6. Tìm ra những người có Plan nhưng KHÔNG có Sales
+    let noSalesList = [];
+    plannedMap.forEach((info, kName) => {
+        if(!activeSet.has(kName)) {
+            noSalesList.push(info);
+        }
+    });
+
+    const box = document.getElementById('warningBox');
+    const tbody = document.getElementById('warningTableBody');
+    const subTitle = document.getElementById('sub-warning');
+
+    if(noSalesList.length === 0) {
+        box.style.display = 'none';
+    } else {
+        box.style.display = 'block';
+        let subText = last2Days.map(d => `${d.d.charAt(0).toUpperCase() + d.d.slice(1)} ${d.w} ${d.m}`).join(" & ");
+        subTitle.innerText = (lang === 'vi' ? "Dữ liệu đối chiếu: " : "Checking data from: ") + subText;
+
+        // Sắp xếp theo Area -> KAM -> KAE
+        noSalesList.sort((a,b) => {
+            if(a.area !== b.area) return String(a.area).localeCompare(String(b.area));
+            if(a.kam !== b.kam) return String(a.kam).localeCompare(String(b.kam));
+            return String(a.kae).localeCompare(String(b.kae));
+        });
+
+        tbody.innerHTML = noSalesList.map(info => `
+            <tr>
+                <td style="text-align: left; font-weight: bold;">${info.area || '-'}</td>
+                <td style="text-align: left; color: var(--b6);">${info.kam || '-'}</td>
+                <td style="text-align: left; color: #dc2626; font-weight: 600;">${info.kae}</td>
+            </tr>
+        `).join("");
+    }
+}
+
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
 
@@ -730,6 +877,8 @@ function render() {
     document.getElementById("kam-val-contrib-area").innerText = areaSalesTotal > 0 ? (kamAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kam-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kamAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
     document.getElementById("kae-val-sales").innerText = fmt(kaeAgg.s); document.getElementById("kae-val-buying-rate").innerText = kaeAgg.tc > 0 ? (kaeAgg.ac / kaeAgg.tc * 100).toFixed(1) + "%" : "0%";
     document.getElementById("kae-val-contrib-area").innerText = areaSalesTotal > 0 ? (kaeAgg.s / areaSalesTotal * 100).toFixed(1) + "%" : "0%"; document.getElementById("kae-val-contrib-nation").innerText = nationSalesTotal > 0 ? (kaeAgg.s / nationSalesTotal * 100).toFixed(1) + "%" : "0%";
+
+    renderNoSalesStaff(); // Cập nhật bảng cảnh báo
 }
 
 function init() {
@@ -741,7 +890,15 @@ function init() {
     if (typeof dbMasterM7 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM7);
     if (typeof dbSalesM7 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM7);
 
-    initResizer(); setLang('vi'); 
+    initResizer(); 
+    setLang('vi'); 
+
+    // Tắt màn hình Loading sau khi hoàn tất init (để khoảng trễ 0.6s cho mượt)
+    setTimeout(() => {
+        const loader = document.getElementById('loader-wrapper');
+        loader.style.opacity = '0';
+        setTimeout(() => loader.style.display = 'none', 500);
+    }, 600);
 }
 
 window.onload = init;
