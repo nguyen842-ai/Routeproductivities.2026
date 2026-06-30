@@ -190,14 +190,10 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    // MUỐN LƯU CATCHE FILE NÀO THÌ THÊM DÒNG VÀO ĐÂY
 <script src="dataM5.js"></script>
 
 <script>
-    // Tự động tạo một dãy số ngẫu nhiên theo thời gian để đánh lừa GitHub và Trình duyệt
     var version = '?t=' + new Date().getTime();
-    
-    // Ép tải mới CÁC THÁNG CHƯA XỬ LÍ HOÀN TẤT DỮ LIỆU THÁNG
     document.write('<script src="kamMap.js' + version + '"><\/script>');
     document.write('<script src="dataM6.js' + version + '"><\/script>');
 </script>
@@ -214,7 +210,9 @@ const dict = {
         cKamTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAM", cDayTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAE",
         axisCust: "Đơn vị: Mã KH", axisVnd: "Đơn vị: VNĐ", legSales: "Doanh số", legTotal: "Tổng KH Kế Hoạch", legActive: "KH Active",
         tblColArea: "Chỉ số / Khu vực", tblColKam: "Chỉ số / Ngày (KAM)", tblColDay: "Chỉ số / Ngày (KAE)",
-        rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", rowStrike: "Strike Rate",
+        rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", 
+        rowStrike: "Strike Rate", 
+        rowDropSize: "Drop Size (VND/Đơn)", // BỔ SUNG: Dịch Drop Size
         days: ["T2", "T3", "T4", "T5", "T6", "T7"], multiRoute: "Nhiều tuyến", noRoute: "Không có tuyến",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
@@ -230,7 +228,9 @@ const dict = {
         cKamTitle: "SALES & CUSTOMER PERFORMANCE BY KAM", cDayTitle: "SALES & CUSTOMER PERFORMANCE BY KAE",
         axisCust: "Unit: Cust. Codes", axisVnd: "Unit: VND", legSales: "Sales", legTotal: "Planned Cust.", legActive: "Active Cust.",
         tblColArea: "Metric / Area", tblColKam: "Metric / Day (KAM)", tblColDay: "Metric / Day (KAE)",
-        rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", rowStrike: "Strike Rate",
+        rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", 
+        rowStrike: "Strike Rate",
+        rowDropSize: "Drop Size (VND/Invc)", // BỔ SUNG: Dịch Drop Size
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
@@ -294,6 +294,7 @@ const parseDay = (dayStr) => {
     return -1; 
 };
 
+// BỔ SUNG: Tính toán Drop Size (sales / invoiceCount) vào kết quả đầu ra
 const aggregateDualData = (masterSubset, salesSubset) => {
     let masterSet = new Set();
     masterSubset.forEach(d => { if (d.cusCode) masterSet.add(d.cusCode); });
@@ -314,7 +315,10 @@ const aggregateDualData = (masterSubset, salesSubset) => {
 
     let activeC = salesSet.size;
     let avgSku = invoiceCount > 0 ? (skuLines / invoiceCount) : 0;
-    return { s: sales, tc: totalC, ac: activeC, avgSku: avgSku };
+    let dropSize = invoiceCount > 0 ? (sales / invoiceCount) : 0; // Tính Drop Size
+    
+    // Thêm dropSize vào object return
+    return { s: sales, tc: totalC, ac: activeC, avgSku: avgSku, dropSize: dropSize };
 };
 
 function renderSegmentTable(masterSubset, salesSubset) {
@@ -388,9 +392,6 @@ function renderSegmentTable(masterSubset, salesSubset) {
     document.getElementById('segmentAreaTableContainer').innerHTML = html;
 }
 
-// ====================================================================================
-// LOGIC CẢNH BÁO NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ (Tối thiểu 2 ngày mới nhất)
-// ====================================================================================
 function renderNoSalesStaff() {
     if (dbMaster.length === 0 && dbSales.length === 0) return;
 
@@ -499,7 +500,6 @@ function renderNoSalesStaff() {
     }
 }
 
-
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
 
 function initResizer() {
@@ -542,7 +542,6 @@ function updateF(type, val) {
             filters[type].splice(idx, 1); 
         } else {
             filters[type].push(val); 
-            // Chỉ giữ truy vết ngược cho KAE -> KAM
             if (type === 'kae') {
                 let f = dbMaster.find(d => cleanName(d.kae) === val) || dbSales.find(d => cleanName(d.kae) === val);
                 if (f && f.kam) {
@@ -725,6 +724,8 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
         { l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) },
         { l: t('rowActive'), k: "ac", f: v => v === "-" ? "-" : `<b style="color:green">${fmt(v)}</b>` },
         { l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) },
+        // BỔ SUNG: Dòng hiển thị Drop Size (Doanh số / Đơn)
+        { l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` },
         { l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` },
         { l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' }
     );
@@ -735,7 +736,6 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
 function render() {
     if (dbMaster.length === 0 && dbSales.length === 0) return; 
 
-    // Base Apply F (dùng chung cho tổng và các biểu đồ phụ)
     const baseApplyF = d => (filters.month.length === 0 || filters.month.includes(d.month)) && 
                             (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase())) && 
                             (filters.hq.length === 0 || filters.hq.includes(d.hq)) && 
@@ -743,9 +743,6 @@ function render() {
     const baseMaster = dbMaster.filter(baseApplyF);
     const baseSales = dbSales.filter(baseApplyF);
 
-    // =================================================================================
-    // LOGIC ĐẶC BIỆT CHO BIỂU ĐỒ AREA (Bỏ qua bộ lọc Area để lấy cái nhìn tổng quan)
-    // =================================================================================
     const areaImmuneApplyF = d => (filters.month.length === 0 || filters.month.includes(d.month)) && 
                                   (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase())) && 
                                   (filters.hq.length === 0 || filters.hq.includes(d.hq));
@@ -753,7 +750,6 @@ function render() {
     const areaImmuneMaster = dbMaster.filter(areaImmuneApplyF);
     const areaImmuneSales = dbSales.filter(areaImmuneApplyF);
 
-    // Filter KAM & KAE
     const kamApplyF = d => baseApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
     const kamMaster = dbMaster.filter(kamApplyF);
     const kamSales = dbSales.filter(kamApplyF);
@@ -774,7 +770,6 @@ function render() {
     const kaeMaster = dbMaster.filter(kaeApplyF);
     const kaeSales = dbSales.filter(kaeApplyF);
 
-    // Render text Subtitle
     let ms = filters.month.length === 0 ? t('optAll') : filters.month.map(x => x.toUpperCase()).join(", ");
     let ws = filters.week.length === 0 ? t('optAll') : filters.week.join(", ");
     let hs = filters.hq.length === 0 ? t('optAll') : filters.hq.join(", ");
@@ -805,24 +800,20 @@ function render() {
     if(document.getElementById('sub-kae')) document.getElementById('sub-kae').innerText = kaeSub;
     if(document.getElementById('sub-week')) document.getElementById('sub-week').innerText = kaeSub;
 
-    // KPI Hệ thống (Trên cùng)
     const sysKPI = aggregateDualData(baseMaster, baseSales);
     document.getElementById("val-sales").innerText = fmt(sysKPI.s);
     document.getElementById("val-cust").innerText = fmt(sysKPI.tc);
     document.getElementById("val-strike").innerText = fmt(sysKPI.ac);
     document.getElementById("val-strike-rate").innerText = (sysKPI.tc > 0 ? (sysKPI.ac/sysKPI.tc*100).toFixed(1) : 0) + "%";
 
-    // Chart & Table Area (Sử dụng Dataset areaImmune)
     const areas = [...new Set([...areaImmuneMaster.map(d=>d.area), ...areaImmuneSales.map(d=>d.area)])].filter(Boolean).sort(); 
     const areaData = areas.map(a => ({ label: a, ...aggregateDualData(areaImmuneMaster.filter(d => d.area === a), areaImmuneSales.filter(d => d.area === a)) }));
     drawChart('areaChart', areaData, 'label');
     const areaSysKPI = aggregateDualData(areaImmuneMaster, areaImmuneSales);
     drawTable('areaHeaderRow', 'areaTableBody', areaData, t('tblColArea'), 'label', false, false, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...areaSysKPI, route: "-" });
 
-    // Table Phân khúc
     renderSegmentTable(baseMaster, baseSales);
 
-    // Chart & Table KAE, KAM, Tuần
     const getDayData = (mSubset, sSubset) => {
         return [0, 1, 2, 3, 4, 5].map(idx => {
             const mDay = mSubset.filter(d => parseDay(d.day) === idx);
@@ -847,34 +838,52 @@ function render() {
     drawChart('dayChart', kaeDayData, 'd');
     drawTable('dayHeaderRow', 'dayTableBody', kaeDayData, t('tblColDay'), 'd', true, false, true, { 'd': lang === 'vi' ? "TỔNG" : "TOTAL", ...kaeAgg, route: "-" }); 
 
-    let wmSet = new Set();
-    kaeMaster.forEach(d => { if(getW(d)) wmSet.add(getW(d) + '|' + d.month); });
-    kaeSales.forEach(d => { if(getW(d)) wmSet.add(getW(d) + '|' + d.month); });
+    // BỔ SUNG: LOGIC WISO CHO BIỂU ĐỒ TUẦN
+    let wKeySet = new Set();
+    const getWeekKey = (d) => d.wiso ? d.wiso : (getW(d) + '|' + d.month);
+
+    kaeMaster.forEach(d => { if(getW(d)) wKeySet.add(getWeekKey(d)); });
+    kaeSales.forEach(d => { if(getW(d)) wKeySet.add(getWeekKey(d)); });
+
+    let realWKeys = Array.from(wKeySet);
     
-    let realWMs = Array.from(wmSet).map(str => {
-        let parts = str.split('|');
-        return { w: parts[0], m: parts[1] };
-    });
-    
-    realWMs.sort((a, b) => {
-        let m1 = monthOrder[a.m.toLowerCase()] || 99;
-        let m2 = monthOrder[b.m.toLowerCase()] || 99;
-        if (m1 !== m2) return m1 - m2;
-        return a.w.localeCompare(b.w);
+    // SẮP XẾP: Xếp các tuần bình thường theo tháng, sau đó chèn WISO vào giữa
+    realWKeys.sort((a, b) => {
+        let isOldA = a.includes('|'), isOldB = b.includes('|');
+        if (isOldA && isOldB) { // Cả 2 đều là tuần bình thường (VD: W2|Jun và W3|Jun)
+            let [wA, mA] = a.split('|'), [wB, mB] = b.split('|');
+            let m1 = monthOrder[mA.toLowerCase()] || 99, m2 = monthOrder[mB.toLowerCase()] || 99;
+            if (m1 !== m2) return m1 - m2;
+            return wA.localeCompare(wB);
+        }
+        if (isOldA && !isOldB) return -1; // Tuần bình thường đứng trước WISO
+        if (!isOldA && isOldB) return 1;  // WISO đứng sau tuần bình thường cũ
+        return a.localeCompare(b);        // Nếu có nhiều WISO thì tự xếp theo chữ cái
     });
 
-    const weekData = realWMs.map(item => ({ 
-        label: formatWM(item.w, item.m), 
-        ...aggregateDualData(
-            kaeMaster.filter(d => getW(d) === item.w && d.month === item.m), 
-            kaeSales.filter(d => getW(d) === item.w && d.month === item.m)
-        ) 
-    }));
+    // MAP DATA: Đọc dữ liệu linh hoạt theo WISO hoặc định dạng cũ
+    const weekData = realWKeys.map(key => {
+        let label, mFilter, sFilter;
+        if (key.includes('|')) { // Nếu là tuần bình thường
+            let [w, m] = key.split('|');
+            label = formatWM(w, m);
+            mFilter = d => getW(d) === w && d.month === m && !d.wiso;
+            sFilter = d => getW(d) === w && d.month === m && !d.wiso;
+        } else { // Nếu là tuần WISO đặc biệt (W27)
+            label = key; 
+            mFilter = d => d.wiso === key;
+            sFilter = d => d.wiso === key;
+        }
+        return {
+            label: label,
+            ...aggregateDualData(kaeMaster.filter(mFilter), kaeSales.filter(sFilter))
+        };
+    });
 
     drawChart('weekChart', weekData, 'label');
     drawTable('weekHeaderRow', 'weekTableBody', weekData, t('tblColWeek'), 'label', false, true, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...aggregateDualData(kaeMaster, kaeSales), route: "-" });
 
-    renderNoSalesStaff(); // Cập nhật bảng cảnh báo
+    renderNoSalesStaff(); 
 }
 
 function init() {
@@ -889,7 +898,6 @@ function init() {
     initResizer(); 
     setLang('vi'); 
 
-    // Tắt màn hình Loading sau khi hoàn tất init
     setTimeout(() => {
         const loader = document.getElementById('loader-wrapper');
         loader.style.opacity = '0';
