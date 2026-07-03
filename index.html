@@ -295,9 +295,9 @@ const formatWM = (w, m) => {
 };
 
 const cleanName = (name, isKamField = false, areaName = "") => {
-    let cleanStr = String(name || "").replace(/[✔️❌]/g, '').trim();
+    // Tự động xóa dấu ✔️❌, xóa khoảng trắng thừa và IN HOA toàn bộ để chống lỗi
+    let cleanStr = String(name || "").replace(/[✔️❌]/g, '').trim().toUpperCase();
     if (isKamField) {
-        cleanStr = cleanStr.toUpperCase(); 
         if (typeof kamMap !== 'undefined') {
             let areaKey = String(areaName || "").toUpperCase().trim() + "|" + cleanStr;
             if (kamMap[areaKey]) return kamMap[areaKey];
