@@ -198,22 +198,44 @@
         var spinner = document.getElementById('loader-spinner');
         if(spinner) spinner.style.display = 'none';
         if(loaderText) {
-            loaderText.innerHTML = '<span style="color: #ef4444;">⚠️ LỖI KẾT NỐI DỮ LIỆU TỪ SUPABASE<br><br><span style="font-size:12px; font-weight:normal; color:#555;">Không thể tải file: ' + source + '<br>Vui lòng kiểm tra lại đường truyền, hoặc thiết lập CORS/Public Bucket.</span></span>';
+            loaderText.innerHTML = '<span style="color: #ef4444;">⚠️ LỖI KẾT NỐI DỮ LIỆU TỪ SUPABASE<br><br><span style="font-size:12px; font-weight:normal; color:#555;">Không thể tải file: ' + source + '<br>Vui lòng kiểm tra lại đường truyền, hoặc Bucket chưa bật Public.</span></span>';
         }
     }
-</script>
 
-<script src="https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM5.js" onerror="handleFatalError('dataM5.js')"></script>
-<script src="https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM6.js" onerror="handleFatalError('dataM6.js')"></script>
-<script>
-    // Tải động các file còn lại bằng kỹ thuật Inject Tag
+    // Tải động TOÀN BỘ các file với cơ chế chống cache (Version)
     var version = '?t=' + new Date().getTime();
-    var supabaseDataM7 = "https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM7.js";
+    var baseUrl = "https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/";
     
+    // Gom tất cả vào 1 mảng duy nhất, dễ dàng thêm M8, M9 sau này
     var scriptsToLoad = [
         'kamMap.js' + version,
-        supabaseDataM7 + version
+        baseUrl + 'dataM5.js' + version,
+        baseUrl + 'dataM6.js' + version,
+        baseUrl + 'dataM7.js' + version
     ];
+    
+    var loadedScripts = 0;
+    var hasError = false;
+
+    // Vòng lặp tải file an toàn
+    scriptsToLoad.forEach(function(src) {
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = function() {
+            if (hasError) return;
+            loadedScripts++;
+            // Chỉ khi TẤT CẢ các file tải xong thì mới vẽ Dashboard
+            if (loadedScripts === scriptsToLoad.length) {
+                if (typeof init === 'function') init();
+            }
+        };
+        script.onerror = function() {
+            hasError = true;
+            handleFatalError(src.split('?')[0]); // Báo lỗi tên file bị hỏng
+        };
+        document.body.appendChild(script);
+    });
+</script>
     
     var loadedScripts = 0;
     var hasError = false;
