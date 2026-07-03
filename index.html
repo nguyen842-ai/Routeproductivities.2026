@@ -193,15 +193,33 @@
 <script src="https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM5.js"></script>
 
 <script>
-    // version = thời gian hiện tại dùng để chống cache
+    // 1. Tạo biến version để chống cache
     var version = '?t=' + new Date().getTime();
     
-    // kamMap.js giữ nguyên trên github như cũ (sử dụng đường dẫn tương đối)
-    document.write('<script src="kamMap.js' + version + '"><\/script>');
-
-    // dataM6.js tải động từ Supabase (KHÔNG LƯU CACHE vì luôn nối ?t=... vào URL)
+    // 2. Link file M6 từ Supabase (Mình đã lấy đúng ID project trong ảnh của bạn, hãy thay TÊN-BUCKET-CỦA-BẠN cho đúng nhé)
     var supabaseDataM6 = "https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM6.js";
-    document.write('<script src="' + supabaseDataM6 + version + '"><\/script>');
+    
+    // Danh sách các file cần tải động
+    var scriptsToLoad = [
+        'kamMap.js' + version,
+        supabaseDataM6 + version
+    ];
+    
+    var loadedScripts = 0;
+    
+    // 3. Hàm tải file an toàn, bypass chặn của Chrome
+    scriptsToLoad.forEach(function(src) {
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = function() {
+            loadedScripts++;
+            // Chỉ khi TẤT CẢ các file tải xong thì mới bắt đầu chạy dữ liệu (thay thế cho window.onload cũ)
+            if (loadedScripts === scriptsToLoad.length) {
+                init();
+            }
+        };
+        document.body.appendChild(script);
+    });
 </script>
 
 <script>
@@ -919,7 +937,6 @@ function init() {
     }, 600);
 }
 
-window.onload = init;
 </script>
 </body>
 </html>
