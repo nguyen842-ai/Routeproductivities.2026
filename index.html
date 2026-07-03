@@ -6,21 +6,21 @@
     <title>Route Productivity Dashboard © 2026 TCI All rights reserved</title>
     <style>
         /* =========================================================
-           1. CẤU HÌNH MÀU SẮC & GIAO DIỆN CHUNG 
+           1. CẤU HÌNH MÀU SẮC & GIAO DIỆN CHUNG
            ========================================================= */
         :root {
             --b1:#E6F1FB; --b2:#B5D4F4; --b3:#85B7EB; --b4:#378ADD; --b5:#185FA5; --b6:#0C447C; --b7:#042C53;
-            --sidebar-width: 440px;
+            --sidebar-width: 440px; /* Sẽ bị ghi đè bởi localStorage nếu có */
         }
         * { -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f0f4f8; color: var(--b7); font-size: 13px; overflow-x: hidden; }
         .db-container { display: flex; min-height: 100vh; position: relative; }
 
         /* LOADING SCREEN */
-        #loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease; }
+        #loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease; text-align: center; padding: 20px;}
         .spinner { width: 40px; height: 40px; border: 4px solid var(--b2); border-top: 4px solid var(--b6); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .loader-text { margin-top: 15px; font-size: 14px; font-weight: bold; color: var(--b6); letter-spacing: 1px;}
+        .loader-text { margin-top: 15px; font-size: 14px; font-weight: bold; color: var(--b6); letter-spacing: 1px; line-height: 1.5;}
 
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; transition: opacity 0.3s; }
         .overlay.show { display: block; opacity: 1; }
@@ -102,8 +102,8 @@
 <body>
 
 <div id="loader-wrapper">
-    <div class="spinner"></div>
-    <div class="loader-text" data-i18n="loading">ĐANG TẢI DỮ LIỆU...</div>
+    <div class="spinner" id="loader-spinner"></div>
+    <div class="loader-text" id="loader-text" data-i18n="loading">ĐANG TẢI DỮ LIỆU...</div>
 </div>
 
 <div class="db-container">
@@ -190,33 +190,48 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM5.js"></script>
 
 <script>
-    // 1. Tạo biến version để chống cache
+    // Hàm xử lý lỗi khi không tải được file
+    function handleFatalError(source) {
+        var loaderText = document.getElementById('loader-text');
+        var spinner = document.getElementById('loader-spinner');
+        if(spinner) spinner.style.display = 'none';
+        if(loaderText) {
+            loaderText.innerHTML = '<span style="color: #ef4444;">⚠️ LỖI KẾT NỐI DỮ LIỆU TỪ SUPABASE<br><br><span style="font-size:12px; font-weight:normal; color:#555;">Không thể tải file: ' + source + '<br>Vui lòng kiểm tra lại đường truyền, hoặc thiết lập CORS/Public Bucket.</span></span>';
+        }
+    }
+</script>
+
+<script src="https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM5.js" onerror="handleFatalError('dataM5.js')"></script>
+
+<script>
+    // Tải động các file còn lại bằng kỹ thuật Inject Tag
     var version = '?t=' + new Date().getTime();
-    
-    // 2. Link file M6 từ Supabase (Mình đã lấy đúng ID project trong ảnh của bạn, hãy thay TÊN-BUCKET-CỦA-BẠN cho đúng nhé)
     var supabaseDataM6 = "https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/dataM6.js";
     
-    // Danh sách các file cần tải động
     var scriptsToLoad = [
         'kamMap.js' + version,
         supabaseDataM6 + version
     ];
     
     var loadedScripts = 0;
-    
-    // 3. Hàm tải file an toàn, bypass chặn của Chrome
+    var hasError = false;
+
     scriptsToLoad.forEach(function(src) {
         var script = document.createElement('script');
         script.src = src;
         script.onload = function() {
+            if (hasError) return;
             loadedScripts++;
-            // Chỉ khi TẤT CẢ các file tải xong thì mới bắt đầu chạy dữ liệu (thay thế cho window.onload cũ)
+            // Khi toàn bộ file đã tải xong, kích hoạt dashboard
             if (loadedScripts === scriptsToLoad.length) {
-                init();
+                if (typeof init === 'function') init();
             }
+        };
+        script.onerror = function() {
+            hasError = true;
+            handleFatalError(src.split('?')[0]); // Cắt bỏ phần ?t=... để thông báo lỗi nhìn gọn gàng
         };
         document.body.appendChild(script);
     });
@@ -235,7 +250,7 @@ const dict = {
         axisCust: "Đơn vị: Mã KH", axisVnd: "Đơn vị: VNĐ", legSales: "Doanh số", legTotal: "Tổng KH Kế Hoạch", legActive: "KH Active",
         tblColArea: "Chỉ số / Khu vực", tblColKam: "Chỉ số / Ngày (KAM)", tblColDay: "Chỉ số / Ngày (KAE)",
         rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", rowStrike: "Strike Rate",
-        rowDropSize: "Giá trị TB/đơn hàng", 
+        rowDropSize: "Giá trị TB/đơn hàng", // Bổ sung dịch nghĩa Drop Size
         days: ["T2", "T3", "T4", "T5", "T6", "T7"], multiRoute: "Nhiều tuyến", noRoute: "Không có tuyến",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
@@ -252,7 +267,7 @@ const dict = {
         axisCust: "Unit: Cust. Codes", axisVnd: "Unit: VND", legSales: "Sales", legTotal: "Planned Cust.", legActive: "Active Cust.",
         tblColArea: "Metric / Area", tblColKam: "Metric / Day (KAM)", tblColDay: "Metric / Day (KAE)",
         rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", rowStrike: "Strike Rate",
-        rowDropSize: "Drop Size (VND/Invc)", 
+        rowDropSize: "Drop Size (VND/Invc)", // Bổ sung dịch nghĩa Drop Size
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
@@ -316,6 +331,7 @@ const parseDay = (dayStr) => {
     return -1; 
 };
 
+// Đã tích hợp logic tính Drop Size
 const aggregateDualData = (masterSubset, salesSubset) => {
     let masterSet = new Set();
     masterSubset.forEach(d => { if (d.cusCode) masterSet.add(d.cusCode); });
@@ -524,13 +540,27 @@ function toggleSidebar() { document.getElementById('sidebar').classList.toggle('
 
 function initResizer() {
     const resizer = document.getElementById('dragMe'); let isResizing = false;
+    
+    // Khôi phục chiều rộng đã lưu trong localStorage (nếu có)
+    const savedWidth = localStorage.getItem('tciSidebarWidth');
+    if(savedWidth) document.documentElement.style.setProperty('--sidebar-width', savedWidth + 'px');
+
     resizer.addEventListener('mousedown', function(e) { isResizing = true; document.body.classList.add('no-select'); resizer.classList.add('resizing'); });
+    
     document.addEventListener('mousemove', function(e) {
         if (!isResizing) return; let newWidth = e.clientX;
         if (newWidth < 250) newWidth = 250; if (newWidth > 700) newWidth = 700;
         document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
     });
-    document.addEventListener('mouseup', function(e) { if (isResizing) { isResizing = false; document.body.classList.remove('no-select'); resizer.classList.remove('resizing'); } });
+    
+    document.addEventListener('mouseup', function(e) { 
+        if (isResizing) { 
+            isResizing = false; document.body.classList.remove('no-select'); resizer.classList.remove('resizing');
+            // Lưu lại chiều rộng vào trình duyệt sau khi nhả chuột
+            let currentWidth = document.documentElement.style.getPropertyValue('--sidebar-width').replace('px', '');
+            localStorage.setItem('tciSidebarWidth', currentWidth);
+        } 
+    });
 }
 
 function setLang(newLang) {
@@ -644,14 +674,14 @@ function renderFilters() {
     allKams.forEach(k => {
         let globalSt = globalKamStatus[k] || k;
         if (globalSt.startsWith('❌')) kamStatusMap[k] = globalSt;
-        else if (!masterKamsSet.has(k)) kamStatusMap[k] = "⚠️ " + k + " (No Route)";
+        else if (!masterKamsSet.has(k)) kamStatusMap[k] = "🚨 " + k + " (No Plan)";
         else kamStatusMap[k] = localKamStatus[k] || k;
     });
     
     allKams.sort((a, b) => {
         let stA = kamStatusMap[a] || ""; let stB = kamStatusMap[b] || "";
-        if (stA.includes('⚠️') && !stB.includes('⚠️')) return -1; 
-        if (!stA.includes('⚠️') && stB.includes('⚠️')) return 1;
+        if (stA.includes('🚨') && !stB.includes('🚨')) return -1; 
+        if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
         if (stA.includes('❌') && !stB.includes('❌')) return 1;  
         if (!stA.includes('❌') && stB.includes('❌')) return -1;
         return a.localeCompare(b);
@@ -681,14 +711,14 @@ function renderFilters() {
     allKaes.forEach(n => {
         let globalSt = globalKaeStatus[n] || n;
         if (globalSt.startsWith('❌')) kaeStatusMap[n] = globalSt;
-        else if (!masterKaesSet.has(n)) kaeStatusMap[n] = "⚠️ " + n + " (No Route)";
+        else if (!masterKaesSet.has(n)) kaeStatusMap[n] = "🚨 " + n + " (No Plan)";
         else kaeStatusMap[n] = localKaeStatus[n] || n;
     });
 
     allKaes.sort((a, b) => {
         let stA = kaeStatusMap[a] || ""; let stB = kaeStatusMap[b] || "";
-        if (stA.includes('⚠️') && !stB.includes('⚠️')) return -1;
-        if (!stA.includes('⚠️') && stB.includes('⚠️')) return 1;
+        if (stA.includes('🚨') && !stB.includes('🚨')) return -1;
+        if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
         if (stA.includes('❌') && !stB.includes('❌')) return 1; 
         if (!stA.includes('❌') && stB.includes('❌')) return -1;
         return a.localeCompare(b);
@@ -744,6 +774,7 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
         { l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) },
         { l: t('rowActive'), k: "ac", f: v => v === "-" ? "-" : `<b style="color:green">${fmt(v)}</b>` },
         { l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) },
+        // Hiển thị Drop Size
         { l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` },
         { l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` },
         { l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' }
@@ -799,13 +830,13 @@ function render() {
 
     let kamsDisp = filters.kam.length === 0 ? t('optAll') : filters.kam.map(k => {
         let st = globalKamStatus[k] || k;
-        if(!st.startsWith('❌') && !baseMaster.some(d => cleanName(d.kam, true, d.area) === k)) return "⚠️ " + k;
+        if(!st.startsWith('❌') && !baseMaster.some(d => cleanName(d.kam, true, d.area) === k)) return "🚨 " + k;
         return st;
     }).join("; ");
 
     let kaesDisp = filters.kae.length === 0 ? t('optAll') : filters.kae.map(k => {
         let st = globalKaeStatus[k] || k;
-        if(!st.startsWith('❌') && !baseMaster.some(d => cleanName(d.kae) === k)) return "⚠️ " + k;
+        if(!st.startsWith('❌') && !baseMaster.some(d => cleanName(d.kae) === k)) return "🚨 " + k;
         return st;
     }).join("; ");
 
@@ -857,6 +888,7 @@ function render() {
     drawChart('dayChart', kaeDayData, 'd');
     drawTable('dayHeaderRow', 'dayTableBody', kaeDayData, t('tblColDay'), 'd', true, false, true, { 'd': lang === 'vi' ? "TỔNG" : "TOTAL", ...kaeAgg, route: "-" }); 
 
+    // CHUYỂN ĐỔI LOGIC: ÁP DỤNG WISO VÀ LABEL THÔNG MINH CHO BIỂU ĐỒ TUẦN
     let wKeySet = new Set();
     const getWeekKey = (d) => d.wiso ? d.wiso : (getW(d) + '|' + d.month);
 
@@ -865,6 +897,7 @@ function render() {
 
     let realWKeys = Array.from(wKeySet);
     
+    // Tự động sắp xếp vị trí thời gian thông minh
     realWKeys.sort((a, b) => {
         const getScore = (key) => {
             let recs = [...kaeMaster, ...kaeSales].filter(d => getWeekKey(d) === key);
@@ -877,6 +910,7 @@ function render() {
         return getScore(a) - getScore(b);
     });
 
+    // Tạo Label gộp Tên tự động (Ví dụ: W5 T6 + W1 T7)
     const weekData = realWKeys.map(key => {
         let label, mFilter, sFilter;
         
@@ -936,7 +970,6 @@ function init() {
         setTimeout(() => loader.style.display = 'none', 500);
     }, 600);
 }
-
 </script>
 </body>
 </html>
