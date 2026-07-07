@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Route Productivity Dashboard © 2026 TCI All rights reserved</title>
     <link rel="icon" type="image/png" href="faviconTCI.png">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         /* =========================================================
            1. CẤU HÌNH MÀU SẮC & GIAO DIỆN CHUNG
            ========================================================= */
         :root {
             --b1:#E6F1FB; --b2:#B5D4F4; --b3:#85B7EB; --b4:#378ADD; --b5:#185FA5; --b6:#0C447C; --b7:#042C53;
-            --sidebar-width: 440px; /* Sẽ bị ghi đè bởi localStorage nếu có */
+            --sidebar-width: 440px; 
         }
         * { -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f0f4f8; color: var(--b7); font-size: 13px; overflow-x: hidden; }
@@ -193,71 +196,73 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
 <script>
-    // Hàm xử lý lỗi khi không tải được file
+(async function () {
     function handleFatalError(source) {
         var loaderText = document.getElementById('loader-text');
         var spinner = document.getElementById('loader-spinner');
         if(spinner) spinner.style.display = 'none';
         if(loaderText) {
-            loaderText.innerHTML = '<span style="color: #ef4444;">⚠️ LỖI KẾT NỐI DỮ LIỆU TỪ SUPABASE<br><br><span style="font-size:12px; font-weight:normal; color:#555;">Không thể tải file: ' + source + '<br>Vui lòng kiểm tra lại đường truyền, hoặc Bucket chưa bật Public.</span></span>';
+            loaderText.innerHTML = '<span style="color: #ef4444;">⚠️ LỖI BẢO MẬT HOẶC KẾT NỐI DỮ LIỆU<br><br><span style="font-size:12px; font-weight:normal; color:#555;">Không thể truy cập: ' + source + '<br>Vui lòng đăng nhập lại từ Trang Hub hoặc kiểm tra đường truyền.</span></span>';
         }
     }
 
-    // Tải động TOÀN BỘ các file với cơ chế chống cache (Version)
+    const SUPABASE_URL = 'https://mrqldgycwovpbmzdeuyz.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_itZfZBVw7bxE184tGh7x8A_0_r-QB5p';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const BUCKET_NAME = 'data';
+    // 🛑 QUAN TRỌNG: ĐỔI LINK TRANG HUB CỦA BẠN VÀO ĐÂY
+    const HUB_URL = 'https://nguyen842-ai.github.io/Tong-hop-bao-cao/'; 
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        alert("Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập. Đang chuyển về Trang Hub...");
+        window.location.href = HUB_URL;
+        return; 
+    }
+
     var version = '?t=' + new Date().getTime();
-    var baseUrl = "https://mrqldgycwovpbmzdeuyz.supabase.co/storage/v1/object/public/data/";
-    
-    // Gom tất cả vào 1 mảng duy nhất, dễ dàng thêm M8, M9 sau này
-    var scriptsToLoad = [
-        'kamMap.js' + version,
-        baseUrl + 'dataM5.js' + version,
-        baseUrl + 'dataM6.js' + version,
-        baseUrl + 'dataM7.js' + version
-    ];
-    
-    var loadedScripts = 0;
-    var hasError = false;
+    var localScripts = ['kamMap.js' + version]; 
+    var secureDataFiles = ['dataM5.js', 'dataM6.js', 'dataM7.js']; 
 
-    // Vòng lặp tải file an toàn
-    scriptsToLoad.forEach(function(src) {
-        var script = document.createElement('script');
-        script.src = src;
-        script.onload = function() {
-            if (hasError) return;
-            loadedScripts++;
-            // Chỉ khi TẤT CẢ các file tải xong thì mới vẽ Dashboard
-            if (loadedScripts === scriptsToLoad.length) {
-                if (typeof init === 'function') init();
-            }
-        };
-        script.onerror = function() {
-            hasError = true;
-            handleFatalError(src.split('?')[0]); // Báo lỗi tên file bị hỏng
-        };
-        document.body.appendChild(script);
-    });
-</script>
-    
-    var loadedScripts = 0;
-    var hasError = false;
+    try {
+        const { data: signedUrlsData, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .createSignedUrls(secureDataFiles, 60);
 
-    scriptsToLoad.forEach(function(src) {
-        var script = document.createElement('script');
-        script.src = src;
-        script.onload = function() {
-            if (hasError) return;
-            loadedScripts++;
-            // Khi toàn bộ file đã tải xong, kích hoạt dashboard
-            if (loadedScripts === scriptsToLoad.length) {
-                if (typeof init === 'function') init();
-            }
-        };
-        script.onerror = function() {
-            hasError = true;
-            handleFatalError(src.split('?')[0]); // Cắt bỏ phần ?t=... để thông báo lỗi nhìn gọn gàng
-        };
-        document.body.appendChild(script);
-    });
+        if (error || !signedUrlsData) throw error;
+
+        var scriptsToLoad = [...localScripts];
+        signedUrlsData.forEach(item => {
+            if (item.error) throw new Error("Không có quyền đọc file: " + item.path);
+            scriptsToLoad.push(item.signedUrl); 
+        });
+
+        var loadedScripts = 0;
+        var hasError = false;
+
+        scriptsToLoad.forEach(function(src) {
+            var script = document.createElement('script');
+            script.src = src;
+            script.onload = function() {
+                if (hasError) return;
+                loadedScripts++;
+                if (loadedScripts === scriptsToLoad.length) {
+                    if (typeof init === 'function') init();
+                }
+            };
+            script.onerror = function() {
+                hasError = true;
+                handleFatalError(src.split('?')[0].substring(0, 50) + '...');
+            };
+            document.body.appendChild(script);
+        });
+
+    } catch (err) {
+        console.error("Lỗi xác thực:", err);
+        handleFatalError("Dữ liệu bảo mật (Access Denied)");
+    }
+})();
 </script>
 
 <script>
@@ -273,7 +278,7 @@ const dict = {
         axisCust: "Đơn vị: Mã KH", axisVnd: "Đơn vị: VNĐ", legSales: "Doanh số", legTotal: "Tổng KH Kế Hoạch", legActive: "KH Active",
         tblColArea: "Chỉ số / Khu vực", tblColKam: "Chỉ số / Ngày (KAM)", tblColDay: "Chỉ số / Ngày (KAE)",
         rowRoute: "Tuyến", rowTotal: "KH Tuyến (Plan)", rowActive: "KH Lên đơn", rowSales: "Doanh số (VND)", rowSku: "SKU / Đơn (Avg)", rowStrike: "Strike Rate",
-        rowDropSize: "Giá trị TB/đơn hàng", // Bổ sung dịch nghĩa Drop Size
+        rowDropSize: "Giá trị TB/đơn hàng", 
         days: ["T2", "T3", "T4", "T5", "T6", "T7"], multiRoute: "Nhiều tuyến", noRoute: "Không có tuyến",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
@@ -290,7 +295,7 @@ const dict = {
         axisCust: "Unit: Cust. Codes", axisVnd: "Unit: VND", legSales: "Sales", legTotal: "Planned Cust.", legActive: "Active Cust.",
         tblColArea: "Metric / Area", tblColKam: "Metric / Day (KAM)", tblColDay: "Metric / Day (KAE)",
         rowRoute: "Route", rowTotal: "Planned Route Cust.", rowActive: "Ordered Cust.", rowSales: "Sales (VND)", rowSku: "Avg SKU / Invc", rowStrike: "Strike Rate",
-        rowDropSize: "Drop Size (VND/Invc)", // Bổ sung dịch nghĩa Drop Size
+        rowDropSize: "Drop Size (VND/Invc)", 
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
@@ -318,7 +323,6 @@ const formatWM = (w, m) => {
 };
 
 const cleanName = (name, isKamField = false, areaName = "") => {
-    // Tự động xóa dấu ✔️❌, xóa khoảng trắng thừa và IN HOA toàn bộ để chống lỗi
     let cleanStr = String(name || "").replace(/[✔️❌]/g, '').trim().toUpperCase();
     if (isKamField) {
         if (typeof kamMap !== 'undefined') {
@@ -354,7 +358,6 @@ const parseDay = (dayStr) => {
     return -1; 
 };
 
-// Đã tích hợp logic tính Drop Size
 const aggregateDualData = (masterSubset, salesSubset) => {
     let masterSet = new Set();
     masterSubset.forEach(d => { if (d.cusCode) masterSet.add(d.cusCode); });
@@ -564,7 +567,6 @@ function toggleSidebar() { document.getElementById('sidebar').classList.toggle('
 function initResizer() {
     const resizer = document.getElementById('dragMe'); let isResizing = false;
     
-    // Khôi phục chiều rộng đã lưu trong localStorage (nếu có)
     const savedWidth = localStorage.getItem('tciSidebarWidth');
     if(savedWidth) document.documentElement.style.setProperty('--sidebar-width', savedWidth + 'px');
 
@@ -579,7 +581,6 @@ function initResizer() {
     document.addEventListener('mouseup', function(e) { 
         if (isResizing) { 
             isResizing = false; document.body.classList.remove('no-select'); resizer.classList.remove('resizing');
-            // Lưu lại chiều rộng vào trình duyệt sau khi nhả chuột
             let currentWidth = document.documentElement.style.getPropertyValue('--sidebar-width').replace('px', '');
             localStorage.setItem('tciSidebarWidth', currentWidth);
         } 
@@ -797,7 +798,6 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
         { l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) },
         { l: t('rowActive'), k: "ac", f: v => v === "-" ? "-" : `<b style="color:green">${fmt(v)}</b>` },
         { l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) },
-        // Hiển thị Drop Size
         { l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` },
         { l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` },
         { l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' }
@@ -911,7 +911,6 @@ function render() {
     drawChart('dayChart', kaeDayData, 'd');
     drawTable('dayHeaderRow', 'dayTableBody', kaeDayData, t('tblColDay'), 'd', true, false, true, { 'd': lang === 'vi' ? "TỔNG" : "TOTAL", ...kaeAgg, route: "-" }); 
 
-    // CHUYỂN ĐỔI LOGIC: ÁP DỤNG WISO VÀ LABEL THÔNG MINH CHO BIỂU ĐỒ TUẦN
     let wKeySet = new Set();
     const getWeekKey = (d) => d.wiso ? d.wiso : (getW(d) + '|' + d.month);
 
@@ -920,7 +919,6 @@ function render() {
 
     let realWKeys = Array.from(wKeySet);
     
-    // Tự động sắp xếp vị trí thời gian thông minh
     realWKeys.sort((a, b) => {
         const getScore = (key) => {
             let recs = [...kaeMaster, ...kaeSales].filter(d => getWeekKey(d) === key);
@@ -933,7 +931,6 @@ function render() {
         return getScore(a) - getScore(b);
     });
 
-    // Tạo Label gộp Tên tự động (Ví dụ: W5 T6 + W1 T7)
     const weekData = realWKeys.map(key => {
         let label, mFilter, sFilter;
         
