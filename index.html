@@ -922,15 +922,17 @@ function render() {
     realWKeys.sort((a, b) => {
         const getScore = (key) => {
             let recs = [...kaeMaster, ...kaeSales].filter(d => getWeekKey(d) === key);
-            if(recs.length === 0) return 9999;
+            if(recs.length === 0) return 999999;
             
-            // Tìm tháng nhỏ nhất trong nhóm (ví dụ nhóm có cả Jun và Jul thì lấy tháng 6)
-            let minMonth = Math.min(...recs.map(d => monthOrder[String(d.month).toLowerCase()] || 99));
+            // Tính điểm (Tháng * 100 + Tuần) cho TỪNG dòng dữ liệu
+            // Sau đó lấy điểm nhỏ nhất làm điểm đại diện cho cả nhóm (nối tuần)
+            let minScore = Math.min(...recs.map(d => {
+                let mNum = monthOrder[String(d.month).toLowerCase()] || 99;
+                let wNum = parseInt(String(getW(d)).replace(/\D/g, '')) || 0;
+                return mNum * 100 + wNum;
+            }));
             
-            // Tìm số tuần nhỏ nhất trực tiếp từ cột "week" gốc của Data (W0 -> 0, W5 -> 5)
-            let minWeekNum = Math.min(...recs.map(d => parseInt(String(getW(d)).replace(/\D/g, '')) || 0));
-            
-            return minMonth * 100 + minWeekNum;
+            return minScore;
         };
         return getScore(a) - getScore(b);
     });
