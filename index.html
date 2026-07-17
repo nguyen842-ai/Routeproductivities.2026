@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Productivity Dashboard © 2026 TCI All rights reserved</title>
+    <title>Route & Category Productivity Dashboard © 2026 TCI</title>
     <link rel="icon" type="image/png" href="faviconTCI.png">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -65,6 +65,15 @@
         .kpi-card .value { font-size: 20px; font-weight: 800; color: var(--b7); }
         .kpi-card .sub { font-size: 11px; color: var(--b3); margin-top: 6px; font-weight: 600; text-transform: none; }
 
+        /* TABS STYLING */
+        .tabs-wrapper { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--b2); padding-bottom: 10px; overflow-x: auto; }
+        .tab-btn { background: white; border: 1px solid var(--b3); color: var(--b6); font-weight: 700; padding: 12px 24px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-btn:hover { background: var(--b1); }
+        .tab-btn.active { background: var(--b5); color: white; border-color: var(--b5); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
         .chart-box { background: white; border: 1px solid var(--b2); border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); max-width: 100%; box-sizing: border-box; }
         .chart-title { font-size: 14px; font-weight: 700; color: var(--b6); margin-bottom: 6px; display: flex; align-items: center; text-transform: uppercase; }
         .chart-title::before { content: ""; display: inline-block; width: 4px; height: 18px; background: var(--b4); margin-right: 10px; }
@@ -115,7 +124,7 @@
 
     <div class="sidebar" id="sidebar">
         <div class="header-wrap">
-            <div class="sidebar-header" data-i18n="sysTitle">WEEKLY ROUTE PRODUCTIVITIES REPORT</div>
+            <div class="sidebar-header" data-i18n="sysTitle">PRODUCTIVITIES REPORT</div>
             <div class="lang-toggle">
                 <button id="btn-vi" onclick="setLang('vi')" class="active">VI</button>
                 <button id="btn-en" onclick="setLang('en')">EN</button>
@@ -147,46 +156,84 @@
             <div class="kpi-card"><div class="label" data-i18n="kpiStrike">STRIKE RATE</div><div class="value" id="val-strike-rate">0%</div><div class="sub" data-i18n="kpiStrikeSub">Tỷ lệ KH Active / Tổng</div></div>
         </div>
 
-        <div class="chart-box">
-            <div class="chart-title" data-i18n="cAreaTitle">HIỆU SUẤT THEO KHU VỰC (AREA)</div><div class="chart-subtitle" id="sub-area"></div>
-            <div style="height: 380px;"><canvas id="areaChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="areaHeaderRow"></tr></thead><tbody id="areaTableBody"></tbody></table></div>
+        <div class="tabs-wrapper">
+            <button id="btn-tab-route" class="tab-btn active" onclick="switchTab('route')" data-i18n="tabRoute">HIỆU SUẤT TUYẾN</button>
+            <button id="btn-tab-cat" class="tab-btn" onclick="switchTab('cat')" data-i18n="tabCat">NGÀNH HÀNG</button>
         </div>
 
-        <div class="chart-box">
-            <div class="chart-title" data-i18n="cSegmentTitle">PHÂN TÍCH HIỆU SUẤT THEO PHÂN KHÚC KHÁCH HÀNG</div><div class="chart-subtitle" id="sub-segment"></div>
-            <div class="table-wrap" id="segmentAreaTableContainer"></div>
+        <!-- TAB 1: HIỆU SUẤT TUYẾN (ROUTE PRODUCTIVITY) -->
+        <div id="tab-route" class="tab-content active">
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cAreaTitle">HIỆU SUẤT THEO KHU VỰC (AREA)</div><div class="chart-subtitle" id="sub-area"></div>
+                <div style="height: 380px;"><canvas id="areaChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="areaHeaderRow"></tr></thead><tbody id="areaTableBody"></tbody></table></div>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cSegmentTitle">PHÂN TÍCH HIỆU SUẤT THEO PHÂN KHÚC KHÁCH HÀNG</div><div class="chart-subtitle" id="sub-segment"></div>
+                <div class="table-wrap" id="segmentAreaTableContainer"></div>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cKamTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAM</div><div class="chart-subtitle" id="sub-kam"></div>
+                <div style="height: 380px;"><canvas id="kamChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="kamHeaderRow"></tr></thead><tbody id="kamTableBody"></tbody></table></div>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cDayTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAE</div><div class="chart-subtitle" id="sub-kae"></div>
+                <div style="height: 380px;"><canvas id="dayChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="dayHeaderRow"></tr></thead><tbody id="dayTableBody"></tbody></table></div>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cWeekTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN</div><div class="chart-subtitle" id="sub-week"></div>
+                <div style="height: 380px;"><canvas id="weekChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="weekHeaderRow"></tr></thead><tbody id="weekTableBody"></tbody></table></div>
+            </div>
+
+            <div class="chart-box warning-box" id="warningBox" style="display: none;">
+                <div class="chart-title warning-title" data-i18n="cWarningTitle">⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT</div>
+                <div class="chart-subtitle" id="sub-warning" style="color: #dc2626;"></div>
+                <div class="table-wrap">
+                    <table class="data-table warning-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%; text-align: left;" data-i18n="warnArea">Khu vực (Area)</th>
+                                <th style="width: 25%; text-align: left;" data-i18n="warnKam">Quản lý KAM</th>
+                                <th style="width: 30%; text-align: left;" data-i18n="warnKae">Nhân viên KAE / DSR</th>
+                                <th style="width: 25%; text-align: left;" data-i18n="warnDays">Ngày không phát sinh DS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warningTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
-        <div class="chart-box">
-            <div class="chart-title" data-i18n="cKamTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAM</div><div class="chart-subtitle" id="sub-kam"></div>
-            <div style="height: 380px;"><canvas id="kamChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="kamHeaderRow"></tr></thead><tbody id="kamTableBody"></tbody></table></div>
-        </div>
+        <!-- TAB 2: NGÀNH HÀNG (CATEGORY PRODUCTIVITY) -->
+        <div id="tab-cat" class="tab-content">
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cCatTitle">HIỆU SUẤT THEO NGÀNH HÀNG</div>
+                <div class="chart-subtitle" id="sub-cat-overall"></div>
+                <div style="height: 380px;"><canvas id="catOverallChart"></canvas></div>
+                <div class="table-wrap">
+                    <table class="data-table"><thead><tr id="catOverallHeaderRow"></tr></thead><tbody id="catOverallTableBody"></tbody></table>
+                </div>
+            </div>
 
-        <div class="chart-box">
-            <div class="chart-title" data-i18n="cDayTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG BY KAE</div><div class="chart-subtitle" id="sub-kae"></div>
-            <div style="height: 380px;"><canvas id="dayChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="dayHeaderRow"></tr></thead><tbody id="dayTableBody"></tbody></table></div>
-        </div>
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cCatArea">DOANH SỐ NGÀNH HÀNG THEO KHU VỰC (AREA)</div>
+                <div class="chart-subtitle" id="sub-cat-area"></div>
+                <div class="table-wrap" id="catAreaTableContainer"></div>
+            </div>
 
-        <div class="chart-box">
-            <div class="chart-title" data-i18n="cWeekTitle">HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN</div><div class="chart-subtitle" id="sub-week"></div>
-            <div style="height: 380px;"><canvas id="weekChart"></canvas></div><div class="table-wrap"><table class="data-table"><thead><tr id="weekHeaderRow"></tr></thead><tbody id="weekTableBody"></tbody></table></div>
-        </div>
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cCatKam">DOANH SỐ NGÀNH HÀNG THEO KAM</div>
+                <div class="chart-subtitle" id="sub-cat-kam"></div>
+                <div class="table-wrap" id="catKamTableContainer"></div>
+            </div>
 
-        <div class="chart-box warning-box" id="warningBox" style="display: none;">
-            <div class="chart-title warning-title" data-i18n="cWarningTitle">⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT</div>
-            <div class="chart-subtitle" id="sub-warning" style="color: #dc2626;"></div>
-            <div class="table-wrap">
-                <table class="data-table warning-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%; text-align: left;" data-i18n="warnArea">Khu vực (Area)</th>
-                            <th style="width: 25%; text-align: left;" data-i18n="warnKam">Quản lý KAM</th>
-                            <th style="width: 30%; text-align: left;" data-i18n="warnKae">Nhân viên KAE / DSR</th>
-                            <th style="width: 25%; text-align: left;" data-i18n="warnDays">Ngày không phát sinh DS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="warningTableBody"></tbody>
-                </table>
+            <div class="chart-box">
+                <div class="chart-title" data-i18n="cCatKae">DOANH SỐ NGÀNH HÀNG THEO KAE</div>
+                <div class="chart-subtitle" id="sub-cat-kae"></div>
+                <div class="table-wrap" id="catKaeTableContainer"></div>
             </div>
         </div>
 
@@ -282,11 +329,14 @@ const dict = {
         days: ["T2", "T3", "T4", "T5", "T6", "T7"], multiRoute: "Nhiều tuyến", noRoute: "Không có tuyến",
         cWeekTitle: "HIỆU SUẤT DOANH SỐ VÀ KHÁCH HÀNG THEO TUẦN", cWeekSubtitle: "TỔNG HỢP DỮ LIỆU CÁC TUẦN", tblColWeek: "Chỉ số / Tuần",
         segColClass: "Mã Class / Phân khúc", segColPlan: "KH Tuyến (Plan)", segColAct: "KH Lên Đơn (Active)", segColSR: "Strike Rate", segColSales: "Doanh số (VND)", segColAvg: "TB Doanh Số / KH Active",
-        nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR", warnDays: "Ngày không phát sinh DS"
+        nationwide: "TOÀN QUỐC", cWarningTitle: "⚠️ NHÂN VIÊN KHÔNG PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT", warnArea: "Khu vực (Area)", warnKam: "Quản lý KAM", warnKae: "Nhân viên KAE / DSR", warnDays: "Ngày không phát sinh DS",
+        
+        tabRoute: "HIỆU SUẤT TUYẾN", tabCat: "NGÀNH HÀNG",
+        cCatTitle: "HIỆU SUẤT THEO NGÀNH HÀNG (OVERALL)", cCatArea: "DOANH SỐ NGÀNH HÀNG THEO KHU VỰC (AREA)", cCatKam: "DOANH SỐ NGÀNH HÀNG THEO KAM", cCatKae: "DOANH SỐ NGÀNH HÀNG THEO KAE", tblColCat: "Chỉ số / Ngành hàng"
     },
     en: {
         loading: "LOADING DATA...",
-        sysTitle: "ROUTE PRODUCTIVITIES REPORT", fMonth: "Month", fWeek: "Week", fRegion: "Region", fArea: "Area", optAll: "All", 
+        sysTitle: "PRODUCTIVITIES REPORT", fMonth: "Month", fWeek: "Week", fRegion: "Region", fArea: "Area", optAll: "All", 
         allKam: "ALL KAMs", allKae: "ALL KAE/DSRs", kpiSales: "Total SELL OUT", kpiSalesSub: "VND (Excl. VAT)", 
         kpiTotal: "ROUTE TOTAL CUS.", kpiTotalSub: "Customers", kpiActive: "Active Customers", kpiActiveSub: "Customers", 
         kpiStrike: "Strike Rate", kpiStrikeSub: "Active / Total Ratio", cAreaTitle: "PERFORMANCE BY AREA", 
@@ -299,7 +349,10 @@ const dict = {
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
-        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales"
+        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales",
+
+        tabRoute: "ROUTE PRODUCTIVITY", tabCat: "CATEGORY",
+        cCatTitle: "CATEGORY PERFORMANCE OVERALL", cCatArea: "CATEGORY SALES BY AREA", cCatKam: "CATEGORY SALES BY KAM", cCatKae: "CATEGORY SALES BY KAE", tblColCat: "Metric / Category"
     }
 };
 
@@ -357,6 +410,13 @@ const parseDay = (dayStr) => {
     if (d.includes("sat") || d === "t7" || d === "7") return 5;
     return -1; 
 };
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    document.getElementById('btn-tab-' + tabId).classList.add('active');
+}
 
 const aggregateDualData = (masterSubset, salesSubset) => {
     let masterSet = new Set();
@@ -562,6 +622,69 @@ function renderNoSalesStaff() {
     }
 }
 
+// Function to draw Matrix Table for Category
+function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, rowHeaderTitle) {
+    let rowsSet = new Set();
+    let colsSet = new Set();
+    let matrix = {};
+    let rowTotals = {};
+    let colTotals = {};
+    let grandTotal = 0;
+
+    dataSubset.forEach(d => {
+        let r = d[rowAttr] || 'N/A';
+        if (rowAttr === 'kam') r = cleanName(r, true, d.area);
+        if (rowAttr === 'kae') r = cleanName(r);
+
+        let c = d[colAttr] || 'N/A';
+        let v = Number(d[valAttr]) || 0;
+
+        if (v > 0) {
+            rowsSet.add(r);
+            colsSet.add(c);
+            if(!matrix[r]) matrix[r] = {};
+            matrix[r][c] = (matrix[r][c] || 0) + v;
+            rowTotals[r] = (rowTotals[r] || 0) + v;
+            colTotals[c] = (colTotals[c] || 0) + v;
+            grandTotal += v;
+        }
+    });
+
+    let rows = Array.from(rowsSet).sort();
+    let cols = Array.from(colsSet).sort();
+
+    if (rows.length === 0) {
+        document.getElementById(containerId).innerHTML = `<div style="padding: 20px; color: #999;">${lang === 'vi' ? 'Không có dữ liệu ngành hàng' : 'No category data'}</div>`;
+        return;
+    }
+
+    let html = `<table class="segment-table"><thead>`;
+    html += `<tr style="background-color: var(--b5); color: white;">`;
+    html += `<th class="seg-area-cell" style="background-color: var(--b6); color: white; z-index:3;">${rowHeaderTitle}</th>`;
+    cols.forEach(c => html += `<th>${c}</th>`);
+    html += `<th style="background-color: var(--b7);">${lang==='vi'?'TỔNG':'TOTAL'}</th></tr></thead><tbody>`;
+
+    rows.forEach(r => {
+        html += `<tr><td class="seg-area-cell">${r}</td>`;
+        cols.forEach(c => {
+            let v = matrix[r][c] || 0;
+            html += `<td style="text-align:right;">${v > 0 ? fmt(v) : '-'}</td>`;
+        });
+        html += `<td style="text-align:right; font-weight:bold; background-color:var(--b1);">${fmt(rowTotals[r])}</td></tr>`;
+    });
+
+    html += `<tr style="background-color: var(--b2); font-weight: bold; border-top: 2px solid var(--b4);">`;
+    html += `<td class="seg-area-cell" style="background-color: var(--b2); color: var(--b7);">${lang==='vi'?'TỔNG HỢP':'GRAND TOTAL'}</td>`;
+    cols.forEach(c => {
+        html += `<td style="text-align:right; color: var(--b7);">${fmt(colTotals[c])}</td>`;
+    });
+    html += `<td style="text-align:right; color: white; background-color: var(--b6);">${fmt(grandTotal)}</td></tr>`;
+    html += `</tbody></table>`;
+
+    document.getElementById(containerId).innerHTML = html;
+}
+
+
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
 
 function initResizer() {
@@ -686,13 +809,9 @@ function renderFilters() {
     const baseMaster = dbMaster.filter(baseApplyF);
     const baseSales = dbSales.filter(baseApplyF);
 
-    // =========================================================================
-    // LOGIC MỚI: SNAPSHOT DANH SÁCH NHÂN SỰ THEO THÁNG MỚI NHẤT
-    // Nếu chưa chọn filter Tháng và Tuần, tự động dùng tháng mới nhất để lấy danh sách
-    // =========================================================================
     let pMonths = filters.month;
     if (filters.month.length === 0 && filters.week.length === 0 && availableMonths.length > 0) {
-        pMonths = [availableMonths[availableMonths.length - 1]]; // Lấy tháng cuối cùng
+        pMonths = [availableMonths[availableMonths.length - 1]];
     }
 
     const personnelApplyF = d => (pMonths.length === 0 || pMonths.includes(d.month)) && 
@@ -702,7 +821,6 @@ function renderFilters() {
 
     const pMaster = dbMaster.filter(personnelApplyF);
     const pSales = dbSales.filter(personnelApplyF);
-    // =========================================================================
     
     const globalKamStatus = buildStatusMap(allData, 'kam');
     const localKamStatus = buildStatusMap(pMaster, 'kam');
@@ -774,29 +892,34 @@ function renderFilters() {
     kaeList.innerHTML = kaeHtml;
 }
 
-function getChartOptions() {
+function getChartOptions(hideTotalCust = false) {
     return { 
         responsive:true, maintainAspectRatio:false, layout: { padding: { top: 30 } }, 
         scales: { 
-            y: { beginAtZero: true, title: { display:true, text: t('axisCust'), font:{weight:'bold', size:12}, align:'end', padding: { bottom: 10 } }, ticks:{ font:{size:10} }, grid: { color: 'rgba(0,0,0,0.05)' } }, 
-            yS: { position:'right', grid:{drawOnChartArea:false}, beginAtZero: true, title: { display:true, text: t('axisVnd'), font:{weight:'bold', size:12}, align:'end', padding: { bottom: 10 } }, ticks:{ font:{size:10}, callback: (v) => fmt(v) } }, 
+            y: { display: !hideTotalCust, beginAtZero: true, title: { display:!hideTotalCust, text: t('axisCust'), font:{weight:'bold', size:12}, align:'end', padding: { bottom: 10 } }, ticks:{ font:{size:10} }, grid: { color: 'rgba(0,0,0,0.05)' } }, 
+            yS: { position: hideTotalCust ? 'left' : 'right', grid:{drawOnChartArea:!hideTotalCust}, beginAtZero: true, title: { display:true, text: t('axisVnd'), font:{weight:'bold', size:12}, align:'end', padding: { bottom: 10 } }, ticks:{ font:{size:10}, callback: (v) => fmt(v) } }, 
             x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } } 
         }, 
         plugins: { legend: { position: 'bottom', labels: { boxWidth: 15, font: { size: 11 } } } } 
     };
 }
 
-function drawChart(chartId, dataArray, labelKey) {
+function drawChart(chartId, dataArray, labelKey, hideTotalCust = false) {
     if(charts[chartId]) charts[chartId].destroy();
+    
+    let datasets = [
+        { type:'line', label: t('legSales'), data: dataArray.map(x => (x.s === "-" ? null : x.s)), borderColor:'#185FA5', backgroundColor:'#185FA5', yAxisID:'yS', order: 0, tension: 0.3, pointRadius: 5 }
+    ];
+
+    if (!hideTotalCust) {
+        datasets.push({ type:'bar', label: t('legTotal'), data: dataArray.map(x => (x.tc === "-" ? null : x.tc)), backgroundColor:'#B5D4F4', order: 1 });
+    }
+    
+    datasets.push({ type:'bar', label: t('legActive'), data: dataArray.map(x => (x.ac === "-" ? null : x.ac)), backgroundColor:'#378ADD', order: 1 });
+
     charts[chartId] = new Chart(document.getElementById(chartId), {
-        data: {
-            labels: dataArray.map(x => x[labelKey]),
-            datasets: [
-                { type:'line', label: t('legSales'), data: dataArray.map(x => (x.s === "-" ? null : x.s)), borderColor:'#185FA5', backgroundColor:'#185FA5', yAxisID:'yS', order: 0, tension: 0.3, pointRadius: 5 },
-                { type:'bar', label: t('legTotal'), data: dataArray.map(x => (x.tc === "-" ? null : x.tc)), backgroundColor:'#B5D4F4', order: 1 },
-                { type:'bar', label: t('legActive'), data: dataArray.map(x => (x.ac === "-" ? null : x.ac)), backgroundColor:'#378ADD', order: 1 }
-            ]
-        }, options: getChartOptions()
+        data: { labels: dataArray.map(x => x[labelKey]), datasets: datasets },
+        options: getChartOptions(hideTotalCust)
     });
 }
 
@@ -891,12 +1014,16 @@ function render() {
     if(document.getElementById('sub-kae')) document.getElementById('sub-kae').innerText = kaeSub;
     if(document.getElementById('sub-week')) document.getElementById('sub-week').innerText = kaeSub;
 
+    // GLOBAL KPI GRID
     const sysKPI = aggregateDualData(baseMaster, baseSales);
     document.getElementById("val-sales").innerText = fmt(sysKPI.s);
     document.getElementById("val-cust").innerText = fmt(sysKPI.tc);
     document.getElementById("val-strike").innerText = fmt(sysKPI.ac);
     document.getElementById("val-strike-rate").innerText = (sysKPI.tc > 0 ? (sysKPI.ac/sysKPI.tc*100).toFixed(1) : 0) + "%";
 
+    // ==========================================
+    // RENDER TAB 1: ROUTE PRODUCTIVITY
+    // ==========================================
     const areas = [...new Set([...areaImmuneMaster.map(d=>d.area), ...areaImmuneSales.map(d=>d.area)])].filter(Boolean).sort(); 
     const areaData = areas.map(a => ({ label: a, ...aggregateDualData(areaImmuneMaster.filter(d => d.area === a), areaImmuneSales.filter(d => d.area === a)) }));
     drawChart('areaChart', areaData, 'label');
@@ -942,8 +1069,6 @@ function render() {
             let recs = [...kaeMaster, ...kaeSales].filter(d => getWeekKey(d) === key);
             if(recs.length === 0) return 999999;
             
-            // Tính điểm (Tháng * 100 + Tuần) cho TỪNG dòng dữ liệu
-            // Sau đó lấy điểm nhỏ nhất làm điểm đại diện cho cả nhóm (nối tuần)
             let minScore = Math.min(...recs.map(d => {
                 let mNum = monthOrder[String(d.month).toLowerCase()] || 99;
                 let wNum = parseInt(String(getW(d)).replace(/\D/g, '')) || 0;
@@ -994,6 +1119,49 @@ function render() {
     drawTable('weekHeaderRow', 'weekTableBody', weekData, t('tblColWeek'), 'label', false, true, true, { label: lang === 'vi' ? "TỔNG" : "TOTAL", ...aggregateDualData(kaeMaster, kaeSales), route: "-" });
 
     renderNoSalesStaff(); 
+
+    // ==========================================
+    // RENDER TAB 2: CATEGORY PRODUCTIVITY
+    // ==========================================
+    if(document.getElementById('sub-cat-overall')) document.getElementById('sub-cat-overall').innerText = baseSub;
+    if(document.getElementById('sub-cat-area')) document.getElementById('sub-cat-area').innerText = `${t('fMonth')}: ${ms} | ${t('fWeek')}: ${ws} | ${t('fRegion')}: ${hs}`;
+    if(document.getElementById('sub-cat-kam')) document.getElementById('sub-cat-kam').innerText = kamSub;
+    if(document.getElementById('sub-cat-kae')) document.getElementById('sub-cat-kae').innerText = kaeSub;
+
+    const catDataMap = new Map();
+    baseSales.forEach(d => {
+        let c = d.cat || 'N/A';
+        if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set() });
+        let v = Number(d.sales) || 0;
+        catDataMap.get(c).s += v;
+        if(v > 0 && d.cusCode) catDataMap.get(c).acSet.add(d.cusCode);
+    });
+
+    let catDataArr = Array.from(catDataMap.values()).map(x => ({
+        label: x.label,
+        s: x.s,
+        tc: "-", 
+        ac: x.acSet.size,
+        avgSku: "-",
+        dropSize: "-" 
+    }));
+
+    catDataArr.sort((a,b) => b.s - a.s);
+    drawChart('catOverallChart', catDataArr, 'label', true); // hide Total Cust bar for category chart
+    
+    let catSysKPI = { 
+        label: lang === 'vi' ? "TỔNG" : "TOTAL", 
+        s: catDataArr.reduce((acc, x) => acc + x.s, 0), 
+        tc: "-", 
+        ac: "-", // Unique actives across all categories is the system AC, which is handled above, so keeping "-" is cleaner in the sum row
+        avgSku: "-", dropSize: "-", route: "-" 
+    };
+    drawTable('catOverallHeaderRow', 'catOverallTableBody', catDataArr, t('tblColCat'), 'label', false, false, true, catSysKPI);
+
+    // Matrix Category x Hierarchy
+    drawMatrixTable('catAreaTableContainer', areaImmuneSales, 'area', 'cat', 'sales', t('tblColArea'));
+    drawMatrixTable('catKamTableContainer', kamSales, 'kam', 'cat', 'sales', t('warnKam'));
+    drawMatrixTable('catKaeTableContainer', kaeSales, 'kae', 'cat', 'sales', t('warnKae'));
 }
 
 function init() {
