@@ -422,21 +422,50 @@ const aggregateDualData = (masterSubset, salesSubset) => {
     masterSubset.forEach(d => { if (d.cusCode) masterSet.add(d.cusCode); });
     let totalC = masterSet.size;
 
-    let sales = 0, skuLines = 0, invoiceCount = 0;
+    let sales = 0;
     let salesSet = new Set();
+    
+    // Dùng object để gom nhóm các dòng thuộc cùng 1 hóa đơn (Cùng Khách + Cùng Ngày)
+    let invoiceMap = {}; 
     
     salesSubset.forEach(d => {
         let currentSales = Number(d.sales) || 0;
         sales += currentSales; 
+        
         if (currentSales > 0) {
-            skuLines += (Number(d.skuLines) || 0);
-            invoiceCount++;
             if (d.cusCode) salesSet.add(d.cusCode);
+            
+            // Tạo key duy nhất để xác định 1 Invoice: Mã KH + Ngày + Tháng
+            let invKey = `${d.cusCode}_${d.day || ''}_${d.week || d.wiso || ''}_${d.month || ''}`;
+            
+            if (!invoiceMap[invKey]) {
+                invoiceMap[invKey] = { sku: 0 };
+            }
+            
+            // TRƯỜNG HỢP 1: Dữ liệu SKU được chia nhỏ theo từng dòng ngành hàng 
+            // (vd: Bill có 5 SKU, Cat A đóng góp 3 SKU, Cat B đóng góp 2 SKU) -> Dùng cộng dồn:
+            invoiceMap[invKey].sku += (Number(d.skuLines) || 0);
+            
+            /* 
+            TRƯỜNG HỢP 2: Nếu cột skuLines trong file gốc của bạn đang hiển thị 
+            tổng số SKU của cả hóa đơn và BỊ LẶP LẠI con số đó trên mọi dòng category
+            (vd: Bill có 5 SKU, dòng Cat A hiện 5, dòng Cat B cũng hiện 5) 
+            -> Hãy xóa (hoặc comment) dòng mã TH1 ở trên và mở khóa dòng dưới đây:
+            
+            invoiceMap[invKey].sku = Math.max(invoiceMap[invKey].sku, (Number(d.skuLines) || 0));
+            */
         }
     });
 
     let activeC = salesSet.size;
-    let avgSku = invoiceCount > 0 ? (skuLines / invoiceCount) : 0;
+    let invoiceCount = Object.keys(invoiceMap).length; // Đếm số lượng hóa đơn thực tế
+    
+    let totalSkuLines = 0;
+    for (let k in invoiceMap) {
+        totalSkuLines += invoiceMap[k].sku;
+    }
+
+    let avgSku = invoiceCount > 0 ? (totalSkuLines / invoiceCount) : 0;
     let dropSize = invoiceCount > 0 ? (sales / invoiceCount) : 0;
 
     return { s: sales, tc: totalC, ac: activeC, avgSku: avgSku, dropSize: dropSize };
