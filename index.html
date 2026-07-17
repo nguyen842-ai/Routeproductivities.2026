@@ -52,9 +52,11 @@
         .list-container { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--b2); border-radius: 6px; overflow: hidden; }
         .list-label { font-size: 11px; font-weight: 700; color: white; background: var(--b5); padding: 12px; text-align: center; }
         .scroll-list { overflow-y: auto; flex-grow: 1; background: #fff; overscroll-behavior-y: contain; }
-        .list-item { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 11px; transition: 0.2s; user-select: none;}
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 11px; transition: 0.2s; user-select: none;}
         .list-item:hover { background: var(--b1); }
         .list-item.selected { background: var(--b4); color: white; font-weight: 600; }
+        .list-item .sales-badge { font-weight: bold; color: var(--b5); font-size: 10px; }
+        .list-item.selected .sales-badge { color: #e0f2fe; }
 
         .main-content { flex: 1; min-width: 0; padding: 25px; overflow-y: auto; width: 100%; box-sizing: border-box; }
         .menu-btn { display: none; background: var(--b6); color: white; border: none; padding: 12px 16px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 20px; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; justify-content: center; }
@@ -684,7 +686,6 @@ function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, row
     document.getElementById(containerId).innerHTML = html;
 }
 
-
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
 
 function initResizer() {
@@ -822,6 +823,7 @@ function renderFilters() {
     const pMaster = dbMaster.filter(personnelApplyF);
     const pSales = dbSales.filter(personnelApplyF);
     
+    // XỬ LÝ DANH SÁCH KAM
     const globalKamStatus = buildStatusMap(allData, 'kam');
     const localKamStatus = buildStatusMap(pMaster, 'kam');
     
@@ -838,7 +840,19 @@ function renderFilters() {
         else kamStatusMap[k] = localKamStatus[k] || k;
     });
     
+    // Lấy doanh số để sắp xếp KAM
+    let kamSalesMap = {};
+    pSales.forEach(d => {
+        let k = cleanName(d.kam, true, d.area);
+        if (!kamSalesMap[k]) kamSalesMap[k] = 0;
+        kamSalesMap[k] += (Number(d.sales) || 0);
+    });
+
     allKams.sort((a, b) => {
+        let salesA = kamSalesMap[a] || 0;
+        let salesB = kamSalesMap[b] || 0;
+        if (salesB !== salesA) return salesB - salesA; // Sort doanh số từ cao xuống thấp
+
         let stA = kamStatusMap[a] || ""; let stB = kamStatusMap[b] || "";
         if (stA.includes('🚨') && !stB.includes('🚨')) return -1; 
         if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
@@ -847,13 +861,17 @@ function renderFilters() {
         return a.localeCompare(b);
     });
 
-    let kamHtml = `<div class="list-item ${filters.kam.length === 0 ? 'selected' : ''}" onclick="updateF('kam', 'all')">${t('allKam')}</div>`;
+    let kamHtml = `<div class="list-item ${filters.kam.length === 0 ? 'selected' : ''}" onclick="updateF('kam', 'all')"><span>${t('allKam')}</span></div>`;
     allKams.forEach(k => { 
         let isSel = filters.kam.includes(k) ? 'selected' : '';
-        kamHtml += `<div class="list-item ${isSel}" onclick="updateF('kam', '${k}')">${kamStatusMap[k]}</div>`; 
+        kamHtml += `<div class="list-item ${isSel}" onclick="updateF('kam', '${k}')">
+                        <span>${kamStatusMap[k]}</span>
+                        <span class="sales-badge">${fmt(kamSalesMap[k] || 0)}</span>
+                    </div>`; 
     });
     kList.innerHTML = kamHtml;
     
+    // XỬ LÝ DANH SÁCH KAE
     const kaeList = document.getElementById("kaeList");
     const kamPersonnelApplyF = d => personnelApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
     
@@ -875,7 +893,19 @@ function renderFilters() {
         else kaeStatusMap[n] = localKaeStatus[n] || n;
     });
 
+    // Lấy doanh số để sắp xếp KAE
+    let kaeSalesMap = {};
+    sKaeData.forEach(d => {
+        let n = cleanName(d.kae);
+        if (!kaeSalesMap[n]) kaeSalesMap[n] = 0;
+        kaeSalesMap[n] += (Number(d.sales) || 0);
+    });
+
     allKaes.sort((a, b) => {
+        let salesA = kaeSalesMap[a] || 0;
+        let salesB = kaeSalesMap[b] || 0;
+        if (salesB !== salesA) return salesB - salesA; // Sort doanh số từ cao xuống thấp
+
         let stA = kaeStatusMap[a] || ""; let stB = kaeStatusMap[b] || "";
         if (stA.includes('🚨') && !stB.includes('🚨')) return -1;
         if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
@@ -884,10 +914,13 @@ function renderFilters() {
         return a.localeCompare(b);
     });
 
-    let kaeHtml = `<div class="list-item ${filters.kae.length === 0 ? 'selected' : ''}" onclick="updateF('kae', 'all')">${t('allKae')}</div>`;
+    let kaeHtml = `<div class="list-item ${filters.kae.length === 0 ? 'selected' : ''}" onclick="updateF('kae', 'all')"><span>${t('allKae')}</span></div>`;
     allKaes.forEach(n => { 
         let isSel = filters.kae.includes(n) ? 'selected' : '';
-        kaeHtml += `<div class="list-item ${isSel}" onclick="updateF('kae', '${n}')">${kaeStatusMap[n]}</div>`; 
+        kaeHtml += `<div class="list-item ${isSel}" onclick="updateF('kae', '${n}')">
+                        <span>${kaeStatusMap[n]}</span>
+                        <span class="sales-badge">${fmt(kaeSalesMap[n] || 0)}</span>
+                    </div>`; 
     });
     kaeList.innerHTML = kaeHtml;
 }
@@ -923,7 +956,7 @@ function drawChart(chartId, dataArray, labelKey, hideTotalCust = false) {
     });
 }
 
-function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTable = false, isWeekTable = false, showTotal = false, explicitTotal = null) {
+function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTable = false, isWeekTable = false, showTotal = false, explicitTotal = null, isCatTable = false) {
     let renderData = [...dataArray];
     if (showTotal && explicitTotal) renderData.push(explicitTotal);
 
@@ -935,14 +968,20 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
     let rows = [];
     if (isKaeTable) { rows.push({ l: t('rowRoute'), k: "route", f: v => `<span style="color:var(--b6); font-weight:600">${v || "-"}</span>` }); }
     
-    rows.push(
-        { l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) },
-        { l: t('rowActive'), k: "ac", f: v => v === "-" ? "-" : `<b style="color:green">${fmt(v)}</b>` },
-        { l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) },
-        { l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` },
-        { l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` },
-        { l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' }
-    );
+    // Ẩn KH Tuyến cho tab Ngành Hàng
+    if (!isCatTable) {
+        rows.push({ l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) });
+    }
+    
+    rows.push({ l: t('rowActive'), k: "ac", f: v => v === "-" ? "-" : `<b style="color:green">${fmt(v)}</b>` });
+    rows.push({ l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) });
+    rows.push({ l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` });
+    
+    // Ẩn SKU / Đơn & Strike Rate cho tab Ngành Hàng
+    if (!isCatTable) {
+        rows.push({ l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` });
+        rows.push({ l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' });
+    }
 
     document.getElementById(bodyId).innerHTML = rows.map(r => `<tr><td class="label-cell">${r.l}</td>${renderData.map(item => { let isTotalCol = showTotal && item === renderData[renderData.length - 1]; return `<td style="${isTotalCol ? 'background: var(--b1); font-weight: bold;' : ''}">${r.f(item[r.k], item)}</td>`; }).join("")}</tr>`).join("");
 }
@@ -1131,10 +1170,15 @@ function render() {
     const catDataMap = new Map();
     baseSales.forEach(d => {
         let c = d.cat || 'N/A';
-        if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set() });
+        // Thêm biến đếm số hoá đơn để phục vụ tính Drop Size cho từng Ngành Hàng
+        if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set(), invoiceCount: 0 });
+        
         let v = Number(d.sales) || 0;
-        catDataMap.get(c).s += v;
-        if(v > 0 && d.cusCode) catDataMap.get(c).acSet.add(d.cusCode);
+        if (v > 0) {
+            catDataMap.get(c).s += v;
+            catDataMap.get(c).invoiceCount += 1;
+            if(d.cusCode) catDataMap.get(c).acSet.add(d.cusCode);
+        }
     });
 
     let catDataArr = Array.from(catDataMap.values()).map(x => ({
@@ -1143,20 +1187,27 @@ function render() {
         tc: "-", 
         ac: x.acSet.size,
         avgSku: "-",
-        dropSize: "-" 
+        invoiceCount: x.invoiceCount,
+        dropSize: x.invoiceCount > 0 ? (x.s / x.invoiceCount) : 0
     }));
 
     catDataArr.sort((a,b) => b.s - a.s);
-    drawChart('catOverallChart', catDataArr, 'label', true); // hide Total Cust bar for category chart
+    drawChart('catOverallChart', catDataArr, 'label', true); // hide Total Cust bar cho biểu đồ ngành hàng
     
+    let totalCatSales = catDataArr.reduce((acc, x) => acc + x.s, 0);
+    let totalCatInvoices = catDataArr.reduce((acc, x) => acc + x.invoiceCount, 0);
     let catSysKPI = { 
         label: lang === 'vi' ? "TỔNG" : "TOTAL", 
-        s: catDataArr.reduce((acc, x) => acc + x.s, 0), 
+        s: totalCatSales, 
         tc: "-", 
-        ac: "-", // Unique actives across all categories is the system AC, which is handled above, so keeping "-" is cleaner in the sum row
-        avgSku: "-", dropSize: "-", route: "-" 
+        ac: "-", 
+        avgSku: "-", 
+        dropSize: totalCatInvoices > 0 ? (totalCatSales / totalCatInvoices) : 0, 
+        route: "-" 
     };
-    drawTable('catOverallHeaderRow', 'catOverallTableBody', catDataArr, t('tblColCat'), 'label', false, false, true, catSysKPI);
+    
+    // Tham số `isCatTable = true` sẽ ẩn 3 dòng KH Tuyến, SKU/Đơn, Strike Rate
+    drawTable('catOverallHeaderRow', 'catOverallTableBody', catDataArr, t('tblColCat'), 'label', false, false, true, catSysKPI, true);
 
     // Matrix Category x Hierarchy
     drawMatrixTable('catAreaTableContainer', areaImmuneSales, 'area', 'cat', 'sales', t('tblColArea'));
