@@ -685,13 +685,31 @@ function renderFilters() {
     
     const baseMaster = dbMaster.filter(baseApplyF);
     const baseSales = dbSales.filter(baseApplyF);
+
+    // =========================================================================
+    // LOGIC MỚI: SNAPSHOT DANH SÁCH NHÂN SỰ THEO THÁNG MỚI NHẤT
+    // Nếu chưa chọn filter Tháng và Tuần, tự động dùng tháng mới nhất để lấy danh sách
+    // =========================================================================
+    let pMonths = filters.month;
+    if (filters.month.length === 0 && filters.week.length === 0 && availableMonths.length > 0) {
+        pMonths = [availableMonths[availableMonths.length - 1]]; // Lấy tháng cuối cùng
+    }
+
+    const personnelApplyF = d => (pMonths.length === 0 || pMonths.includes(d.month)) && 
+                                 (filters.week.length === 0 || filters.week.includes(getW(d).toUpperCase())) && 
+                                 (filters.hq.length === 0 || filters.hq.includes(d.hq)) && 
+                                 (filters.area.length === 0 || filters.area.includes(d.area));
+
+    const pMaster = dbMaster.filter(personnelApplyF);
+    const pSales = dbSales.filter(personnelApplyF);
+    // =========================================================================
     
     const globalKamStatus = buildStatusMap(allData, 'kam');
-    const localKamStatus = buildStatusMap(baseMaster, 'kam');
+    const localKamStatus = buildStatusMap(pMaster, 'kam');
     
     const kList = document.getElementById("kamList");
-    let masterKamsSet = new Set(baseMaster.map(d => cleanName(d.kam, true, d.area)));
-    let salesKams = [...new Set(baseSales.map(d => cleanName(d.kam, true, d.area)))];
+    let masterKamsSet = new Set(pMaster.map(d => cleanName(d.kam, true, d.area)));
+    let salesKams = [...new Set(pSales.map(d => cleanName(d.kam, true, d.area)))];
     let allKams = [...new Set([...masterKamsSet, ...salesKams])].filter(Boolean);
     
     let kamStatusMap = {};
@@ -719,10 +737,10 @@ function renderFilters() {
     kList.innerHTML = kamHtml;
     
     const kaeList = document.getElementById("kaeList");
-    const kamApplyF = d => baseApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
+    const kamPersonnelApplyF = d => personnelApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
     
-    const mKaeData = dbMaster.filter(kamApplyF);
-    const sKaeData = dbSales.filter(kamApplyF);
+    const mKaeData = dbMaster.filter(kamPersonnelApplyF);
+    const sKaeData = dbSales.filter(kamPersonnelApplyF);
 
     const globalKaeStatus = buildStatusMap(allData, 'kae');
     const localKaeStatus = buildStatusMap(mKaeData, 'kae');
