@@ -52,11 +52,9 @@
         .list-container { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--b2); border-radius: 6px; overflow: hidden; }
         .list-label { font-size: 11px; font-weight: 700; color: white; background: var(--b5); padding: 12px; text-align: center; }
         .scroll-list { overflow-y: auto; flex-grow: 1; background: #fff; overscroll-behavior-y: contain; }
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 11px; transition: 0.2s; user-select: none;}
+        .list-item { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 11px; transition: 0.2s; user-select: none;}
         .list-item:hover { background: var(--b1); }
         .list-item.selected { background: var(--b4); color: white; font-weight: 600; }
-        .list-item .sales-badge { font-weight: bold; color: var(--b5); font-size: 10px; }
-        .list-item.selected .sales-badge { color: #e0f2fe; }
 
         .main-content { flex: 1; min-width: 0; padding: 25px; overflow-y: auto; width: 100%; box-sizing: border-box; }
         .menu-btn { display: none; background: var(--b6); color: white; border: none; padding: 12px 16px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 20px; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; justify-content: center; }
@@ -260,7 +258,6 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const BUCKET_NAME = 'data';
-    // 🛑 QUAN TRỌNG: ĐỔI LINK TRANG HUB CỦA BẠN VÀO ĐÂY
     const HUB_URL = 'https://nguyen842-ai.github.io/Tong-hop-bao-cao/'; 
 
     const { data: { session } } = await supabase.auth.getSession();
@@ -625,7 +622,8 @@ function renderNoSalesStaff() {
 }
 
 // Function to draw Matrix Table for Category
-function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, rowHeaderTitle) {
+// Đã thêm logic sắp xếp tự động theo doanh số tổng từ cao xuống thấp và gắn statusMap
+function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, rowHeaderTitle, statusMap = null) {
     let rowsSet = new Set();
     let colsSet = new Set();
     let matrix = {};
@@ -652,7 +650,12 @@ function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, row
         }
     });
 
-    let rows = Array.from(rowsSet).sort();
+    // Sắp xếp tự động theo doanh số cao -> thấp
+    let rows = Array.from(rowsSet).sort((a, b) => {
+        if (rowTotals[b] !== rowTotals[a]) return rowTotals[b] - rowTotals[a];
+        return a.localeCompare(b);
+    });
+    
     let cols = Array.from(colsSet).sort();
 
     if (rows.length === 0) {
@@ -667,7 +670,10 @@ function drawMatrixTable(containerId, dataSubset, rowAttr, colAttr, valAttr, row
     html += `<th style="background-color: var(--b7);">${lang==='vi'?'TỔNG':'TOTAL'}</th></tr></thead><tbody>`;
 
     rows.forEach(r => {
-        html += `<tr><td class="seg-area-cell">${r}</td>`;
+        // Áp dụng icon trạng thái vào tên nếu có truyền statusMap (KAM/KAE)
+        let rDisplay = (statusMap && statusMap[r]) ? statusMap[r] : r;
+        html += `<tr><td class="seg-area-cell">${rDisplay}</td>`;
+        
         cols.forEach(c => {
             let v = matrix[r][c] || 0;
             html += `<td style="text-align:right;">${v > 0 ? fmt(v) : '-'}</td>`;
@@ -821,7 +827,6 @@ function renderFilters() {
                                  (filters.area.length === 0 || filters.area.includes(d.area));
 
     const pMaster = dbMaster.filter(personnelApplyF);
-    const pSales = dbSales.filter(personnelApplyF);
     
     // XỬ LÝ DANH SÁCH KAM
     const globalKamStatus = buildStatusMap(allData, 'kam');
@@ -829,7 +834,7 @@ function renderFilters() {
     
     const kList = document.getElementById("kamList");
     let masterKamsSet = new Set(pMaster.map(d => cleanName(d.kam, true, d.area)));
-    let salesKams = [...new Set(pSales.map(d => cleanName(d.kam, true, d.area)))];
+    let salesKams = [...new Set(dbSales.filter(personnelApplyF).map(d => cleanName(d.kam, true, d.area)))];
     let allKams = [...new Set([...masterKamsSet, ...salesKams])].filter(Boolean);
     
     let kamStatusMap = {};
@@ -839,20 +844,8 @@ function renderFilters() {
         else if (!masterKamsSet.has(k)) kamStatusMap[k] = "🚨 " + k + " (No Plan)";
         else kamStatusMap[k] = localKamStatus[k] || k;
     });
-    
-    // Lấy doanh số để sắp xếp KAM
-    let kamSalesMap = {};
-    pSales.forEach(d => {
-        let k = cleanName(d.kam, true, d.area);
-        if (!kamSalesMap[k]) kamSalesMap[k] = 0;
-        kamSalesMap[k] += (Number(d.sales) || 0);
-    });
 
     allKams.sort((a, b) => {
-        let salesA = kamSalesMap[a] || 0;
-        let salesB = kamSalesMap[b] || 0;
-        if (salesB !== salesA) return salesB - salesA; // Sort doanh số từ cao xuống thấp
-
         let stA = kamStatusMap[a] || ""; let stB = kamStatusMap[b] || "";
         if (stA.includes('🚨') && !stB.includes('🚨')) return -1; 
         if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
@@ -861,13 +854,10 @@ function renderFilters() {
         return a.localeCompare(b);
     });
 
-    let kamHtml = `<div class="list-item ${filters.kam.length === 0 ? 'selected' : ''}" onclick="updateF('kam', 'all')"><span>${t('allKam')}</span></div>`;
+    let kamHtml = `<div class="list-item ${filters.kam.length === 0 ? 'selected' : ''}" onclick="updateF('kam', 'all')">${t('allKam')}</div>`;
     allKams.forEach(k => { 
         let isSel = filters.kam.includes(k) ? 'selected' : '';
-        kamHtml += `<div class="list-item ${isSel}" onclick="updateF('kam', '${k}')">
-                        <span>${kamStatusMap[k]}</span>
-                        <span class="sales-badge">${fmt(kamSalesMap[k] || 0)}</span>
-                    </div>`; 
+        kamHtml += `<div class="list-item ${isSel}" onclick="updateF('kam', '${k}')">${kamStatusMap[k]}</div>`; 
     });
     kList.innerHTML = kamHtml;
     
@@ -876,13 +866,12 @@ function renderFilters() {
     const kamPersonnelApplyF = d => personnelApplyF(d) && (filters.kam.length === 0 || filters.kam.includes(cleanName(d.kam, true, d.area)));
     
     const mKaeData = dbMaster.filter(kamPersonnelApplyF);
-    const sKaeData = dbSales.filter(kamPersonnelApplyF);
 
     const globalKaeStatus = buildStatusMap(allData, 'kae');
     const localKaeStatus = buildStatusMap(mKaeData, 'kae');
 
     let masterKaesSet = new Set(mKaeData.map(d => cleanName(d.kae)));
-    let salesKaes = [...new Set(sKaeData.map(d => cleanName(d.kae)))];
+    let salesKaes = [...new Set(dbSales.filter(kamPersonnelApplyF).map(d => cleanName(d.kae)))];
     let allKaes = [...new Set([...masterKaesSet, ...salesKaes])].filter(Boolean);
 
     let kaeStatusMap = {};
@@ -893,19 +882,7 @@ function renderFilters() {
         else kaeStatusMap[n] = localKaeStatus[n] || n;
     });
 
-    // Lấy doanh số để sắp xếp KAE
-    let kaeSalesMap = {};
-    sKaeData.forEach(d => {
-        let n = cleanName(d.kae);
-        if (!kaeSalesMap[n]) kaeSalesMap[n] = 0;
-        kaeSalesMap[n] += (Number(d.sales) || 0);
-    });
-
     allKaes.sort((a, b) => {
-        let salesA = kaeSalesMap[a] || 0;
-        let salesB = kaeSalesMap[b] || 0;
-        if (salesB !== salesA) return salesB - salesA; // Sort doanh số từ cao xuống thấp
-
         let stA = kaeStatusMap[a] || ""; let stB = kaeStatusMap[b] || "";
         if (stA.includes('🚨') && !stB.includes('🚨')) return -1;
         if (!stA.includes('🚨') && stB.includes('🚨')) return 1;
@@ -914,13 +891,10 @@ function renderFilters() {
         return a.localeCompare(b);
     });
 
-    let kaeHtml = `<div class="list-item ${filters.kae.length === 0 ? 'selected' : ''}" onclick="updateF('kae', 'all')"><span>${t('allKae')}</span></div>`;
+    let kaeHtml = `<div class="list-item ${filters.kae.length === 0 ? 'selected' : ''}" onclick="updateF('kae', 'all')">${t('allKae')}</div>`;
     allKaes.forEach(n => { 
         let isSel = filters.kae.includes(n) ? 'selected' : '';
-        kaeHtml += `<div class="list-item ${isSel}" onclick="updateF('kae', '${n}')">
-                        <span>${kaeStatusMap[n]}</span>
-                        <span class="sales-badge">${fmt(kaeSalesMap[n] || 0)}</span>
-                    </div>`; 
+        kaeHtml += `<div class="list-item ${isSel}" onclick="updateF('kae', '${n}')">${kaeStatusMap[n]}</div>`; 
     });
     kaeList.innerHTML = kaeHtml;
 }
@@ -968,7 +942,6 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
     let rows = [];
     if (isKaeTable) { rows.push({ l: t('rowRoute'), k: "route", f: v => `<span style="color:var(--b6); font-weight:600">${v || "-"}</span>` }); }
     
-    // Ẩn KH Tuyến cho tab Ngành Hàng
     if (!isCatTable) {
         rows.push({ l: t('rowTotal'), k: "tc", f: v => v === "-" ? "-" : fmt(v) });
     }
@@ -977,7 +950,6 @@ function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTab
     rows.push({ l: t('rowSales'), k: "s", f: v => v === "-" ? "-" : fmt(v) });
     rows.push({ l: t('rowDropSize'), k: "dropSize", f: v => (!v || v === "-") ? "-" : `<span style="color:var(--b4); font-weight:700">${fmt(v)}</span>` });
     
-    // Ẩn SKU / Đơn & Strike Rate cho tab Ngành Hàng
     if (!isCatTable) {
         rows.push({ l: t('rowSku'), k: "avgSku", f: v => v === "-" ? "-" : `<span style="color:var(--b5); font-weight:700">${Number(v||0).toFixed(1)}</span>` });
         rows.push({ l: t('rowStrike'), k: "r", f: (_, i) => (i.tc > 0 && i.tc !== "-" && i.ac !== "-") ? `<b>${(i.ac/i.tc*100).toFixed(1)}%</b>` : '-' });
@@ -1170,7 +1142,6 @@ function render() {
     const catDataMap = new Map();
     baseSales.forEach(d => {
         let c = d.cat || 'N/A';
-        // Thêm biến đếm số hoá đơn để phục vụ tính Drop Size cho từng Ngành Hàng
         if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set(), invoiceCount: 0 });
         
         let v = Number(d.sales) || 0;
@@ -1192,7 +1163,7 @@ function render() {
     }));
 
     catDataArr.sort((a,b) => b.s - a.s);
-    drawChart('catOverallChart', catDataArr, 'label', true); // hide Total Cust bar cho biểu đồ ngành hàng
+    drawChart('catOverallChart', catDataArr, 'label', true); 
     
     let totalCatSales = catDataArr.reduce((acc, x) => acc + x.s, 0);
     let totalCatInvoices = catDataArr.reduce((acc, x) => acc + x.invoiceCount, 0);
@@ -1206,13 +1177,12 @@ function render() {
         route: "-" 
     };
     
-    // Tham số `isCatTable = true` sẽ ẩn 3 dòng KH Tuyến, SKU/Đơn, Strike Rate
     drawTable('catOverallHeaderRow', 'catOverallTableBody', catDataArr, t('tblColCat'), 'label', false, false, true, catSysKPI, true);
 
-    // Matrix Category x Hierarchy
+    // Matrix Category x Hierarchy: Truyền thêm globalKamStatus, globalKaeStatus vào hàm drawMatrixTable
     drawMatrixTable('catAreaTableContainer', areaImmuneSales, 'area', 'cat', 'sales', t('tblColArea'));
-    drawMatrixTable('catKamTableContainer', kamSales, 'kam', 'cat', 'sales', t('warnKam'));
-    drawMatrixTable('catKaeTableContainer', kaeSales, 'kae', 'cat', 'sales', t('warnKae'));
+    drawMatrixTable('catKamTableContainer', kamSales, 'kam', 'cat', 'sales', t('warnKam'), globalKamStatus);
+    drawMatrixTable('catKaeTableContainer', kaeSales, 'kae', 'cat', 'sales', t('warnKae'), globalKaeStatus);
 }
 
 function init() {
