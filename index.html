@@ -543,7 +543,8 @@ function renderSegmentTable(masterSubset, salesSubset) {
 }
 
 function renderNoSalesStaff() {
-    if (dbMaster.length === 0 && dbSales.length === 0) return;
+    // Chỉ dùng dbSales
+    if (dbSales.length === 0) return;
 
     let dateSet = new Set();
     dbSales.forEach(d => {
@@ -578,46 +579,33 @@ function renderNoSalesStaff() {
         return targetDates.some(td => td.m === rm && td.w === rw && td.d === rd);
     };
 
-    const isKaeOrDsr = (nameStr) => {
-        let n = String(nameStr || "").toUpperCase();
-        return n.includes("KAE") || n.includes("DSR");
-    };
-
-    let plannedMap = new Map();
-    dbMaster.forEach(d => {
-        let rawName = String(d.kae || "").trim();
-        if(isTargetDate(d, last2Days) && isKaeOrDsr(rawName) && !rawName.includes("❌")) {
-            if(!plannedMap.has(rawName)) {
-                plannedMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName, plannedDates: new Set() });
-            }
-            let dateStr = JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()});
-            plannedMap.get(rawName).plannedDates.add(dateStr);
-        }
-    });
-
-    let salesMap = new Map();
+    // 1. Quét tìm danh sách nhân viên KAE có dấu ✔️ (và không có ❌) trên toàn bộ hệ thống từ dbSales
+    let targetStaffMap = new Map();
     dbSales.forEach(d => {
         let rawName = String(d.kae || "").trim();
-        if(isTargetDate(d, last2Days) && isKaeOrDsr(rawName) && !rawName.includes("❌") && Number(d.sales) > 0) {
-            if(!salesMap.has(rawName)) salesMap.set(rawName, new Set());
-            let dateStr = JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()});
-            salesMap.get(rawName).add(dateStr);
+        if(rawName.includes("✔️") && !rawName.includes("❌")) {
+            if(!targetStaffMap.has(rawName)) {
+                targetStaffMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName });
+            }
         }
     });
 
+    // 2. Tìm những nhân viên CÓ phát sinh doanh số trong 2 ngày gần nhất
+    let activeStaffInLast2Days = new Set();
+    dbSales.forEach(d => {
+        let rawName = String(d.kae || "").trim();
+        if(isTargetDate(d, last2Days) && Number(d.sales) > 0) {
+            activeStaffInLast2Days.add(rawName);
+        }
+    });
+
+    // 3. Đối chiếu: Ai có trong danh sách mục tiêu (dấu ✔️) nhưng KHÔNG active -> Cảnh báo
     let noSalesList = [];
-    plannedMap.forEach((info, kName) => {
-        let activeDays = salesMap.get(kName) || new Set();
-        let missed = [];
-        
-        info.plannedDates.forEach(dateStr => {
-            if(!activeDays.has(dateStr)) {
-                missed.push(JSON.parse(dateStr));
-            }
-        });
-        
-        if (missed.length > 0 && activeDays.size === 0) { 
-            info.missedDays = missed.map(d => formatDateToDDMMYYYY(d));
+    let missedDaysText = last2Days.map(d => formatDateToDDMMYYYY(d)); // Hiển thị 2 ngày đó luôn
+
+    targetStaffMap.forEach((info, kName) => {
+        if(!activeStaffInLast2Days.has(kName)) {
+            info.missedDays = missedDaysText;
             noSalesList.push(info);
         }
     });
@@ -1168,8 +1156,12 @@ function render() {
     if(document.getElementById('sub-cat-kam')) document.getElementById('sub-cat-kam').innerText = kamSub;
     if(document.getElementById('sub-cat-kae')) document.getElementById('sub-cat-kae').innerText = kaeSub;
 
+    // HÀM LỌC BỎ NGÀNH HÀNG DISPLAY
+    const notDisplay = d => String(d.cat || "").toUpperCase().trim() !== "DISPLAY";
+
     const catDataMap = new Map();
-    baseSales.forEach(d => {
+    // Áp dụng bộ lọc notDisplay vào baseSales
+    baseSales.filter(notDisplay).forEach(d => {
         let c = d.cat || 'N/A';
         if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set(), invoiceCount: 0 });
         
@@ -1208,10 +1200,10 @@ function render() {
     
     drawTable('catOverallHeaderRow', 'catOverallTableBody', catDataArr, t('tblColCat'), 'label', false, false, true, catSysKPI, true);
 
-    // Matrix Category x Hierarchy: Truyền thêm globalKamStatus, globalKaeStatus vào hàm drawMatrixTable
-    drawMatrixTable('catAreaTableContainer', areaImmuneSales, 'area', 'cat', 'sales', t('tblColArea'));
-    drawMatrixTable('catKamTableContainer', kamSales, 'kam', 'cat', 'sales', t('warnKam'), globalKamStatus);
-    drawMatrixTable('catKaeTableContainer', kaeSales, 'kae', 'cat', 'sales', t('warnKae'), globalKaeStatus);
+    // Matrix Category x Hierarchy: Thêm .filter(notDisplay) vào các mảng dữ liệu
+    drawMatrixTable('catAreaTableContainer', areaImmuneSales.filter(notDisplay), 'area', 'cat', 'sales', t('tblColArea'));
+    drawMatrixTable('catKamTableContainer', kamSales.filter(notDisplay), 'kam', 'cat', 'sales', t('warnKam'), globalKamStatus);
+    drawMatrixTable('catKaeTableContainer', kaeSales.filter(notDisplay), 'kae', 'cat', 'sales', t('warnKae'), globalKaeStatus);
 }
 
 function init() {
