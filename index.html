@@ -348,7 +348,7 @@ const dict = {
         days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], multiRoute: "Multiple", noRoute: "No route",
         cWeekTitle: "WEEKLY SELL OUT SUMMARY", cWeekSubtitle: "WEEKLY DATA SUMMARY", tblColWeek: "Metric / Week",
         segColClass: "Segment Class", segColPlan: "Planned Cust.", segColAct: "Active Cust.", segColSR: "Strike Rate", segColSales: "Sales (VND)", segColAvg: "Avg Sales / Active Cust.",
-        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 2 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales",
+        nationwide: "NATIONWIDE", cWarningTitle: "⚠️ STAFF WITH NO SALES IN THE LAST 1 DAYS", warnArea: "Area", warnKam: "KAM Manager", warnKae: "KAE / DSR Staff", warnDays: "Dates with zero sales",
 
         tabRoute: "ROUTE PRODUCTIVITY", tabCat: "CATEGORY",
         cCatTitle: "CATEGORY PERFORMANCE OVERALL", cCatArea: "CATEGORY SALES BY AREA", cCatKam: "CATEGORY SALES BY KAM", cCatKae: "CATEGORY SALES BY KAE", tblColCat: "Metric / Category"
@@ -665,7 +665,7 @@ function renderNoSalesStaff() {
     } else {
         box.style.display = 'block';
         let subText = last2Days.map(d => formatDateToDDMMYYYY(d)).join(" & ");
-        subTitle.innerText = (lang === 'vi' ? "Đối chiếu tối thiểu 1 ngày, tối đa đa 2 ngày mới nhất. Trong trường hợp nhân viên có phát sinh doanh số nhưng vẫn có tên ở danh sách này, vui lòng kiểm tra tình trạng duyệt đơn hàng và liên hệ SE team để được hỗ trợ: " : "Checking latest 2 days: ") + subText;
+        subTitle.innerText = (lang === 'vi' ? "Đối chiếu tối thiểu 1 ngày, tối đa đa 2 ngày mới nhất. Trong trường hợp nhân viên có phát sinh doanh số nhưng vẫn có tên ở danh sách này, vui lòng kiểm tra tình trạng duyệt đơn hàng và liên hệ SE team để được hỗ trợ: " : "Note: Cross-check last 1–2 days. If an employee has sales but is still listed, check order approval status and contact SE team: ") + subText;
 
         noSalesList.sort((a,b) => {
             if(a.area !== b.area) return String(a.area).localeCompare(String(b.area));
