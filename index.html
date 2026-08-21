@@ -604,7 +604,7 @@ function renderNoSalesStaff() {
         return parseDay(a.d) - parseDay(b.d);
     });
 
-    let last2Days = dates.slice(-2);
+    let last2Days = dates.slice(-1);
     if(last2Days.length === 0) {
         document.getElementById('warningBox').style.display = 'none';
         return;
@@ -665,7 +665,7 @@ function renderNoSalesStaff() {
     } else {
         box.style.display = 'block';
         let subText = last2Days.map(d => formatDateToDDMMYYYY(d)).join(" & ");
-        subTitle.innerText = (lang === 'vi' ? "Dữ liệu đối chiếu 2 ngày mới nhất: " : "Checking latest 2 days: ") + subText;
+        subTitle.innerText = (lang === 'vi' ? "Đối chiếu tối thiểu 1 ngày, tối đa đa 2 ngày mới nhất. Trong trường hợp nhân viên có phát sinh doanh số nhưng vẫn có tên ở danh sách này, vui lòng kiểm tra tình trạng duyệt đơn hàng và liên hệ SE team để được hỗ trợ: " : "Checking latest 2 days: ") + subText;
 
         noSalesList.sort((a,b) => {
             if(a.area !== b.area) return String(a.area).localeCompare(String(b.area));
