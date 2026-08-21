@@ -546,6 +546,19 @@ function renderNoSalesStaff() {
     // Chỉ dùng dbSales
     if (dbSales.length === 0) return;
 
+    // 1. TÌM THÁNG MỚI NHẤT (Tháng có x bự nhất trong số các file được load)
+    let maxMonthNum = 0;
+    let latestMonthStr = "";
+    dbSales.forEach(d => {
+        if (d.month) {
+            let mNum = monthOrder[d.month.toLowerCase()] || 0;
+            if (mNum > maxMonthNum) {
+                maxMonthNum = mNum;
+                latestMonthStr = d.month;
+            }
+        }
+    });
+
     let dateSet = new Set();
     dbSales.forEach(d => {
         if (d.month && getW(d) && d.day && Number(d.sales) > 0) {
@@ -579,18 +592,25 @@ function renderNoSalesStaff() {
         return targetDates.some(td => td.m === rm && td.w === rw && td.d === rd);
     };
 
-    // 1. Quét tìm danh sách nhân viên KAE có dấu ✔️ (và không có ❌) trên toàn bộ hệ thống từ dbSales
+    // 2. LẤY DANH SÁCH NHÂN VIÊN MỤC TIÊU TỪ THÁNG MỚI NHẤT
     let targetStaffMap = new Map();
     dbSales.forEach(d => {
-        let rawName = String(d.kae || "").trim();
-        if(rawName.includes("✔️") && !rawName.includes("❌")) {
-            if(!targetStaffMap.has(rawName)) {
-                targetStaffMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName });
+        // Chỉ lấy nhân viên từ data của tháng mới nhất
+        if (d.month === latestMonthStr) {
+            let rawName = String(d.kae || "").trim();
+            // cleanName sẽ tự động xóa các emoji ✔️, ❌ và khoảng trắng thừa để so sánh chuẩn nhất
+            let cName = cleanName(rawName); 
+            
+            // Điều kiện: Có ✔️, KHÔNG có ❌, và tên KHÔNG bắt đầu bằng chữ "KAM"
+            if(rawName.includes("✔️") && !rawName.includes("❌") && !cName.startsWith("KAM")) {
+                if(!targetStaffMap.has(rawName)) {
+                    targetStaffMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName });
+                }
             }
         }
     });
 
-    // 2. Tìm những nhân viên CÓ phát sinh doanh số trong 2 ngày gần nhất
+    // 3. TÌM NHỮNG NHÂN VIÊN CÓ PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT
     let activeStaffInLast2Days = new Set();
     dbSales.forEach(d => {
         let rawName = String(d.kae || "").trim();
@@ -599,9 +619,9 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 3. Đối chiếu: Ai có trong danh sách mục tiêu (dấu ✔️) nhưng KHÔNG active -> Cảnh báo
+    // 4. ĐỐI CHIẾU VÀ XUẤT CẢNH BÁO
     let noSalesList = [];
-    let missedDaysText = last2Days.map(d => formatDateToDDMMYYYY(d)); // Hiển thị 2 ngày đó luôn
+    let missedDaysText = last2Days.map(d => formatDateToDDMMYYYY(d));
 
     targetStaffMap.forEach((info, kName) => {
         if(!activeStaffInLast2Days.has(kName)) {
