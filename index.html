@@ -541,17 +541,17 @@ function renderSegmentTable(masterSubset, salesSubset) {
     html += `</tbody></table>`;
     document.getElementById('segmentAreaTableContainer').innerHTML = html;
 }
-
 function renderNoSalesStaff() {
-    // Chỉ dùng dbSales
     if (dbSales.length === 0) return;
 
-    // 1. TÌM THÁNG MỚI NHẤT (Tháng có x bự nhất trong số các file được load)
+    // --- 1. TÌM THÁNG VÀ TUẦN MỚI NHẤT TRONG DATA ---
     let maxMonthNum = 0;
     let latestMonthStr = "";
+    let latestWeekStr = "";
+
     dbSales.forEach(d => {
         if (d.month) {
-            let mNum = monthOrder[d.month.toLowerCase()] || 0;
+            let mNum = monthOrder[String(d.month).toLowerCase()] || 0;
             if (mNum > maxMonthNum) {
                 maxMonthNum = mNum;
                 latestMonthStr = d.month;
@@ -559,10 +559,38 @@ function renderNoSalesStaff() {
         }
     });
 
+    let maxWeekVal = "";
+    dbSales.forEach(d => {
+        if (d.month === latestMonthStr && getW(d)) {
+            let w = getW(d).toUpperCase();
+            if (w > maxWeekVal) {
+                maxWeekVal = w;
+                latestWeekStr = w;
+            }
+        }
+    });
+
+    // --- 2. ĐỌC THỜI GIAN THỰC TẾ ĐỂ CHẶN NGÀY TƯƠNG LAI ---
+    let today = new Date();
+    let sysDay = today.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
+    // Quy đổi về index hệ thống (Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6)
+    let currentDayIdx = sysDay === 0 ? 6 : sysDay - 1; 
+
+    // --- 3. LỌC TÌM 2 NGÀY GẦN NHẤT (ĐÃ CHẶN TƯƠNG LAI) ---
     let dateSet = new Set();
     dbSales.forEach(d => {
         if (d.month && getW(d) && d.day && Number(d.sales) > 0) {
-            dateSet.add(JSON.stringify({m: d.month, w: getW(d).toUpperCase(), d: String(d.day).toLowerCase().trim()}));
+            let dMonth = d.month;
+            let dWeek = getW(d).toUpperCase();
+            let dDayStr = String(d.day).toLowerCase().trim();
+            let dDayIdx = parseDay(dDayStr);
+
+            // Nếu đây là dữ liệu của tuần hiện tại mà dDayIdx lớn hơn ngày hôm nay => Là Data ảo/tương lai => Loại bỏ
+            let isFuture = (dMonth === latestMonthStr && dWeek === latestWeekStr && dDayIdx > currentDayIdx);
+            
+            if (!isFuture) {
+                dateSet.add(JSON.stringify({m: dMonth, w: dWeek, d: dDayStr}));
+            }
         }
     });
 
@@ -592,16 +620,14 @@ function renderNoSalesStaff() {
         return targetDates.some(td => td.m === rm && td.w === rw && td.d === rd);
     };
 
-    // 2. LẤY DANH SÁCH NHÂN VIÊN MỤC TIÊU TỪ THÁNG MỚI NHẤT
+    // --- 4. LẤY DANH SÁCH NHÂN VIÊN MỤC TIÊU (TUẦN MỚI NHẤT & BỎ KAM) ---
     let targetStaffMap = new Map();
     dbSales.forEach(d => {
-        // Chỉ lấy nhân viên từ data của tháng mới nhất
-        if (d.month === latestMonthStr) {
+        // [ĐÃ SỬA] CHỈ LẤY NHÂN VIÊN XUẤT HIỆN TRONG TUẦN MỚI NHẤT & THÁNG MỚI NHẤT
+        if (d.month === latestMonthStr && getW(d).toUpperCase() === latestWeekStr) {
             let rawName = String(d.kae || "").trim();
-            // cleanName sẽ tự động xóa các emoji ✔️, ❌ và khoảng trắng thừa để so sánh chuẩn nhất
             let cName = cleanName(rawName); 
             
-            // Điều kiện: Có ✔️, KHÔNG có ❌, và tên KHÔNG bắt đầu bằng chữ "KAM"
             if(rawName.includes("✔️") && !rawName.includes("❌") && !cName.startsWith("KAM")) {
                 if(!targetStaffMap.has(rawName)) {
                     targetStaffMap.set(rawName, { area: d.area, kam: d.kam, kae: rawName });
@@ -610,7 +636,7 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 3. TÌM NHỮNG NHÂN VIÊN CÓ PHÁT SINH DOANH SỐ TRONG 2 NGÀY GẦN NHẤT
+    // --- 5. ĐỐI CHIẾU DOANH SỐ 2 NGÀY CUỐI ---
     let activeStaffInLast2Days = new Set();
     dbSales.forEach(d => {
         let rawName = String(d.kae || "").trim();
@@ -619,7 +645,7 @@ function renderNoSalesStaff() {
         }
     });
 
-    // 4. ĐỐI CHIẾU VÀ XUẤT CẢNH BÁO
+    // --- 6. XUẤT CẢNH BÁO ---
     let noSalesList = [];
     let missedDaysText = last2Days.map(d => formatDateToDDMMYYYY(d));
 
