@@ -377,22 +377,28 @@ async function fetchDataFiles() {
         if (m == 9 && typeof dbMasterM9 !== 'undefined') { dbMaster = dbMaster.concat(dbMasterM9); tempRawSales = tempRawSales.concat(dbSalesM9); }
     });
 
-   // Áp dụng bộ lọc notDisplay vào baseSales
-    baseSales.filter(notDisplay).forEach(d => {
-        let c = d.cat || 'N/A';
-        if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set(), invoiceCount: 0 });
+    // BỘ NÉN SIÊU TỐC TỪ PHIÊN BẢN TRƯỚC
+    // BỘ NÉN SIÊU TỐC TỪ PHIÊN BẢN TRƯỚC
+    let compressedSalesMap = {};
+    for (let i = 0; i < tempRawSales.length; i++) {
+        let d = tempRawSales[i];
+        let invKey = `${d.cusCode}_${d.day || ''}_${d.week || d.wiso || ''}_${d.month || ''}`;
+        let compressKey = `${invKey}_${d.cat || 'NA'}`;
         
-        let v = d._numSales !== undefined ? d._numSales : (Number(d.sales) || 0);
-        if (v > 0) {
-            catDataMap.get(c).s += v;
-            
-            // BẢO TOÀN 100% CÔNG THỨC CŨ: 
-            // Thay vì +=1 (1 dòng nén), ta cộng trả lại đúng số dòng thô ban đầu
-            catDataMap.get(c).invoiceCount += (d._rawLineCount || 1); 
-            
-            if(d.cusCode) catDataMap.get(c).acSet.add(d.cusCode);
+        if (!compressedSalesMap[compressKey]) {
+            compressedSalesMap[compressKey] = { ...d }; 
+            compressedSalesMap[compressKey]._invKey = invKey;
+            compressedSalesMap[compressKey]._numSales = Number(d.sales) || 0;
+            compressedSalesMap[compressKey]._numSkuLines = Number(d.skuLines) || 0;
+            compressedSalesMap[compressKey]._rawLineCount = 1; // <-- Bổ sung: Nhớ rằng đây là 1 dòng gốc
+        } else {
+            compressedSalesMap[compressKey]._numSales += (Number(d.sales) || 0);
+            compressedSalesMap[compressKey]._numSkuLines += (Number(d.skuLines) || 0);
+            compressedSalesMap[compressKey]._rawLineCount += 1; // <-- Bổ sung: Đếm thêm các dòng bị gộp
         }
-    });
+    }
+    dbSales = Object.values(compressedSalesMap);
+    tempRawSales = null; // Free RAM
 
     // RESET FILTER (Vì data thay đổi hoàn toàn)
     filters = { week: [], hq: [], area: [], kam: [], kae: [] };
@@ -1199,6 +1205,7 @@ function render() {
     const notDisplay = d => String(d.cat || "").toUpperCase().trim() !== "DISPLAY";
 
     const catDataMap = new Map();
+   // Áp dụng bộ lọc notDisplay vào baseSales
     baseSales.filter(notDisplay).forEach(d => {
         let c = d.cat || 'N/A';
         if(!catDataMap.has(c)) catDataMap.set(c, { label: c, s: 0, acSet: new Set(), invoiceCount: 0 });
@@ -1206,7 +1213,11 @@ function render() {
         let v = d._numSales !== undefined ? d._numSales : (Number(d.sales) || 0);
         if (v > 0) {
             catDataMap.get(c).s += v;
-            catDataMap.get(c).invoiceCount += 1;
+            
+            // BẢO TOÀN 100% CÔNG THỨC CŨ: 
+            // Thay vì +=1 (1 dòng nén), ta cộng trả lại đúng số dòng thô ban đầu
+            catDataMap.get(c).invoiceCount += (d._rawLineCount || 1); 
+            
             if(d.cusCode) catDataMap.get(c).acSet.add(d.cusCode);
         }
     });
