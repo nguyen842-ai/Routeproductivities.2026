@@ -424,41 +424,29 @@ const aggregateDualData = (masterSubset, salesSubset) => {
 
     let sales = 0;
     let salesSet = new Set();
-    
-    // Dùng object để gom nhóm các dòng thuộc cùng 1 hóa đơn (Cùng Khách + Cùng Ngày)
     let invoiceMap = {}; 
     
     salesSubset.forEach(d => {
-        let currentSales = Number(d.sales) || 0;
+        // Ưu tiên dùng số liệu đã chuyển đổi sẵn (cache) để bỏ qua hàm Number()
+        let currentSales = d._numSales !== undefined ? d._numSales : (Number(d.sales) || 0);
         sales += currentSales; 
         
         if (currentSales > 0) {
             if (d.cusCode) salesSet.add(d.cusCode);
             
-            // Tạo key duy nhất để xác định 1 Invoice: Mã KH + Ngày + Tháng
-            let invKey = `${d.cusCode}_${d.day || ''}_${d.week || d.wiso || ''}_${d.month || ''}`;
+            // Ưu tiên dùng chuỗi Key đã nối sẵn (tiết kiệm CPU)
+            let invKey = d._invKey || `${d.cusCode}_${d.day || ''}_${d.week || d.wiso || ''}_${d.month || ''}`;
             
             if (!invoiceMap[invKey]) {
                 invoiceMap[invKey] = { sku: 0 };
             }
             
-            // TRƯỜNG HỢP 1: Dữ liệu SKU được chia nhỏ theo từng dòng ngành hàng 
-            // (vd: Bill có 5 SKU, Cat A đóng góp 3 SKU, Cat B đóng góp 2 SKU) -> Dùng cộng dồn:
-            invoiceMap[invKey].sku += (Number(d.skuLines) || 0);
-            
-            /* 
-            TRƯỜNG HỢP 2: Nếu cột skuLines trong file gốc của bạn đang hiển thị 
-            tổng số SKU của cả hóa đơn và BỊ LẶP LẠI con số đó trên mọi dòng category
-            (vd: Bill có 5 SKU, dòng Cat A hiện 5, dòng Cat B cũng hiện 5) 
-            -> Hãy xóa (hoặc comment) dòng mã TH1 ở trên và mở khóa dòng dưới đây:
-            
-            invoiceMap[invKey].sku = Math.max(invoiceMap[invKey].sku, (Number(d.skuLines) || 0));
-            */
+            invoiceMap[invKey].sku += (d._numSkuLines !== undefined ? d._numSkuLines : (Number(d.skuLines) || 0));
         }
     });
 
     let activeC = salesSet.size;
-    let invoiceCount = Object.keys(invoiceMap).length; // Đếm số lượng hóa đơn thực tế
+    let invoiceCount = Object.keys(invoiceMap).length; 
     
     let totalSkuLines = 0;
     for (let k in invoiceMap) {
@@ -975,7 +963,7 @@ function getChartOptions(hideTotalCust = false) {
 }
 
 function drawChart(chartId, dataArray, labelKey, hideTotalCust = false) {
-    if(charts[chartId]) charts[chartId].destroy();
+    let labels = dataArray.map(x => x[labelKey]);
     
     let datasets = [
         { type:'line', label: t('legSales'), data: dataArray.map(x => (x.s === "-" ? null : x.s)), borderColor:'#185FA5', backgroundColor:'#185FA5', yAxisID:'yS', order: 0, tension: 0.3, pointRadius: 5 }
@@ -987,10 +975,18 @@ function drawChart(chartId, dataArray, labelKey, hideTotalCust = false) {
     
     datasets.push({ type:'bar', label: t('legActive'), data: dataArray.map(x => (x.ac === "-" ? null : x.ac)), backgroundColor:'#378ADD', order: 1 });
 
-    charts[chartId] = new Chart(document.getElementById(chartId), {
-        data: { labels: dataArray.map(x => x[labelKey]), datasets: datasets },
-        options: getChartOptions(hideTotalCust)
-    });
+    // TỐI ƯU HÓA: Nếu biểu đồ đã tồn tại, chỉ update Data (Giảm tải CPU đồ họa)
+    if (charts[chartId]) {
+        charts[chartId].data.labels = labels;
+        charts[chartId].data.datasets = datasets;
+        charts[chartId].options = getChartOptions(hideTotalCust);
+        charts[chartId].update();
+    } else {
+        charts[chartId] = new Chart(document.getElementById(chartId), {
+            data: { labels: labels, datasets: datasets },
+            options: getChartOptions(hideTotalCust)
+        });
+    }
 }
 
 function drawTable(headerId, bodyId, dataArray, titleColName, labelKey, isKaeTable = false, isWeekTable = false, showTotal = false, explicitTotal = null, isCatTable = false) {
@@ -1252,6 +1248,26 @@ function render() {
     drawMatrixTable('catKaeTableContainer', kaeSales.filter(notDisplay), 'kae', 'cat', 'sales', t('warnKae'), globalKaeStatus);
 }
 
+// ==========================================
+// THÊM HÀM CACHE DỮ LIỆU (BƯỚC 3)
+// ==========================================
+function preProcessData() {
+    // Duyệt qua dbSales 1 lần duy nhất lúc vừa load xong web
+    for (let i = 0; i < dbSales.length; i++) {
+        let d = dbSales[i];
+        
+        // 1. Cache lại key hóa đơn (Giúp bỏ qua việc nối chuỗi hàng trăm ngàn lần khi filter)
+        d._invKey = `${d.cusCode}_${d.day || ''}_${d.week || d.wiso || ''}_${d.month || ''}`;
+        
+        // 2. Cache lại các giá trị số (Giúp bỏ qua hàm ép kiểu Number() cực kỳ tốn CPU)
+        d._numSales = Number(d.sales) || 0;
+        d._numSkuLines = Number(d.skuLines) || 0;
+    }
+}
+
+// ==========================================
+// HÀM INIT CẬP NHẬT
+// ==========================================
 function init() {
     dbMaster = []; dbSales = [];
     if (typeof dbMasterM5 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM5);
@@ -1264,6 +1280,10 @@ function init() {
     if (typeof dbSalesM8 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM8);
     if (typeof dbMasterM9 !== 'undefined') dbMaster = dbMaster.concat(dbMasterM9);
     if (typeof dbSalesM9 !== 'undefined')  dbSales  = dbSales.concat(dbSalesM9);
+    
+    // --> GỌI HÀM CACHE DỮ LIỆU Ở ĐÂY (Ngay sau khi gộp toàn bộ data xong)
+    preProcessData();
+
     initResizer(); 
     setLang('vi'); 
 
