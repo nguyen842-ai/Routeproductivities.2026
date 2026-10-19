@@ -923,7 +923,7 @@ function renderFilters() {
     allKams.forEach(k => {
         let globalSt = globalKamStatus[k] || k;
         if (globalSt.startsWith('❌')) kamStatusMap[k] = globalSt;
-        else if (!masterKamsSet.has(k)) kamStatusMap[k] = "🚨 " + k + " (No Plan)";
+        else if (!masterKamsSet.has(k)) kamStatusMap[k] = "🚨 " + k + " (Route recheck required)";
         else kamStatusMap[k] = localKamStatus[k] || k;
     });
 
@@ -958,7 +958,7 @@ function renderFilters() {
     allKaes.forEach(n => {
         let globalSt = globalKaeStatus[n] || n;
         if (globalSt.startsWith('❌')) kaeStatusMap[n] = globalSt;
-        else if (!masterKaesSet.has(n)) kaeStatusMap[n] = "🚨 " + n + " (No Plan)";
+        else if (!masterKaesSet.has(n)) kaeStatusMap[n] = "🚨 " + n + " (Route recheck required)";
         else kaeStatusMap[n] = localKaeStatus[n] || n;
     });
 
