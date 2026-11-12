@@ -152,7 +152,8 @@
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="6"> T6</label>
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="7"> T7</label>
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="8"> T8</label>
-                <label class="cb-lbl"><input type="checkbox" class="cb-month" value="9" checked> T9</label>
+                <!-- Đã xóa thuộc tính checked cứng ở T9 -->
+                <label class="cb-lbl"><input type="checkbox" class="cb-month" value="9"> T9</label>
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="10"> T10</label>
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="11"> T11</label>
                 <label class="cb-lbl"><input type="checkbox" class="cb-month" value="12"> T12</label>
@@ -390,7 +391,6 @@ async function fetchDataFiles() {
     });
 
     // BỘ NÉN SIÊU TỐC TỪ PHIÊN BẢN TRƯỚC
-    // BỘ NÉN SIÊU TỐC TỪ PHIÊN BẢN TRƯỚC
     let compressedSalesMap = {};
     for (let i = 0; i < tempRawSales.length; i++) {
         let d = tempRawSales[i];
@@ -427,6 +427,18 @@ async function fetchDataFiles() {
 }
 
 function initInitialUI() {
+    // Tự động tìm và chọn tháng hiện tại
+    const currentMonth = new Date().getMonth() + 1; // Lấy tháng từ 1 tới 12
+    const cbMonth = document.querySelector(`.cb-month[value="${currentMonth}"]`);
+    
+    if (cbMonth) {
+        cbMonth.checked = true;
+    } else {
+        // Fallback: nếu danh sách tháng không chứa tháng hiện tại (ví dụ danh sách chỉ có T5-T12), tự chọn tháng cuối cùng
+        const allCbs = document.querySelectorAll('.cb-month');
+        if (allCbs.length > 0) allCbs[allCbs.length - 1].checked = true;
+    }
+
     initResizer(); 
     setLang('vi'); 
     const loader = document.getElementById('loader-wrapper');
